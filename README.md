@@ -22,4 +22,4 @@ Chaque dossier contient un sous-dossier par instrument (ex : `guitar/`, `piano/`
 ## Pistes de constitution du dataset
 
 - Utilisation d’un dataset public existant pour garantir la diversité et la qualité des images.
-- Possibilité d’augmenter le dataset plus tard si besoin (data augmentation, scraping, etc.).
+- Possibilité d’augmenter le dataset plus tard si besoin.
