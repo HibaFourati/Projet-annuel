@@ -1,0 +1,9 @@
+# Rust
+/target
+
+# VS Code
+.vscode/
+
+# Fichiers temporaires
+*.log
+*.tmp
