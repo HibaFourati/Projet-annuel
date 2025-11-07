@@ -1,0 +1,11 @@
+[package]
+name = "projet_annuel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+csv = "1.2"
+ndarray = "0.15"
+rand = "0.8"
+image = "0.24"
+
