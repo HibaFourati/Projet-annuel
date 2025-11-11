@@ -94,7 +94,7 @@ impl MLP {
             .map(|(o, e)| Self::dsigmoid(*o) * e * self.learning_rate)
             .collect();
 
-        // Ajustement des poids hidden -> output
+        // Ajustement des poids -> output
         for i in 0..self.output_size {
             for j in 0..self.hidden_size {
                 self.weights_hidden_output[i][j] += output_gradients[i] * hidden[j];
