@@ -3,7 +3,7 @@ import os
 import numpy as np
 import csv
 
-# Chemins complets vers tes dossiers
+# Chemins complets vers mes dossiers
 folders = [
     r"C:\Users\foura\Downloads\ESGI_2025-ProjetAnnuel3BigDataJanvier_E1_10-15-17.12.03_Problématique (2)\instruments_dataset\piano",
     r"C:\Users\foura\Downloads\ESGI_2025-ProjetAnnuel3BigDataJanvier_E1_10-15-17.12.03_Problématique (2)\instruments_dataset\guitare",
