@@ -2,7 +2,7 @@
 /*mod mlp;
 mod utils;
 
-// importe ton fichier mlp.rs
+// importer le fichier mlp.rs
 use mlp::MLP;     // importe la struct publique MLP
 
 use std::fs::File;
