@@ -1,14 +1,13 @@
 [package]
-name = "projet_annuel"
+name = "linear_model"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "linear_model"
+crate-type = ["cdylib"]
+path = "src/linear_model.rs"
+
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-csv = "1.2"
 ndarray = "0.15"
 rand = "0.8"
-image = "0.24"
-plotters = "0.3"
-
