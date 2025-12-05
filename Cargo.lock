@@ -32,14 +32,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 
 [[package]]
-name = "linear_model"
-version = "0.1.0"
-dependencies = [
- "ndarray",
- "rand",
-]
-
-[[package]]
 name = "matrixmultiply"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -60,6 +52,15 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rawpointer",
+]
+
+[[package]]
+name = "neural_networks"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "ndarray",
+ "rand",
 ]
 
 [[package]]

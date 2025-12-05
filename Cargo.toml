@@ -1,13 +1,14 @@
 [package]
-name = "linear_model"
+name = "neural_networks"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "linear_model"
+name = "neural_networks"
 crate-type = ["cdylib"]
-path = "src/linear_model.rs"
+path = "src/lib.rs"
 
 [dependencies]
 ndarray = "0.15"
 rand = "0.8"
+libc = "0.2"

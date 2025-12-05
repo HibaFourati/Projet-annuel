@@ -6,7 +6,7 @@ import os
 # ==================== WRAPPER RUST CORRIGÉ ====================
 class LinearModel:
     def __init__(self, input_dim: int, learning_rate: float = 0.01):
-        lib_path = "./target/release/linear_model.dll"
+        lib_path = "./target/release/neural_networks.dll"
         
         #  AJOUTE CETTE LIGNE POUR CHARGER LA BIBLIOTHÈQUE D'ABORD !
         self.lib = ctypes.CDLL(lib_path)

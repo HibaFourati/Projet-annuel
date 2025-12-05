@@ -8,7 +8,7 @@ from pathlib import Path
 # ======== WRAPPER RUST ========
 class LinearModel:
     def __init__(self, input_dim: int, learning_rate: float = 0.01):
-        self.lib = ctypes.CDLL("./target/release/linear_model.dll")
+        self.lib = ctypes.CDLL("./target/release/neural_networks.dll")
         self.lib.linear_model_new.argtypes = [ctypes.c_size_t, ctypes.c_double]
         self.lib.linear_model_new.restype = ctypes.c_void_p
         self.lib.linear_model_delete.argtypes = [ctypes.c_void_p]
