@@ -80,7 +80,7 @@ pub extern "C" fn linear_model_predict_batch(
     features: *const f64,
     results: *mut f64,
     n_samples: usize,
-    n_features: usize,
+    n_features: usize, //est un type de données en Rust qui représente un entier non signé (positif)
 ) {
     unsafe {
         let model = &*model;
@@ -92,7 +92,7 @@ pub extern "C" fn linear_model_predict_batch(
             for j in 0..n_features {
                 prediction += model.weights[j] * features_slice[i * n_features + j];
             }
-            results_slice[i] = prediction;
+            results_slice[i] = prediction;// Stocke le résultat
         }
     }
 }

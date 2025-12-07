@@ -3,15 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-# ==================== WRAPPER RUST CORRIGÉ ====================
+# ==================== WRAPPER RUST  ====================
 class LinearModel:
     def __init__(self, input_dim: int, learning_rate: float = 0.01):
         lib_path = "./target/release/neural_networks.dll"
         
-        #  AJOUTE CETTE LIGNE POUR CHARGER LA BIBLIOTHÈQUE D'ABORD !
+        #   CHARGEMENT DE LA BIBLIOTHÈQUE!
         self.lib = ctypes.CDLL(lib_path)
         
-        # MAINTENANT tu peux configurer les fonctions
+        # configuration les fonctions
         self.lib.linear_model_new.argtypes = [ctypes.c_size_t, ctypes.c_double]
         self.lib.linear_model_new.restype = ctypes.c_void_p
         
@@ -37,21 +37,25 @@ class LinearModel:
         self.lib.linear_model_get_bias.restype = ctypes.c_double
         
         # Créer le modèle
-        self.model_ptr = self.lib.linear_model_new(input_dim, learning_rate)
+        self.model_ptr = self.lib.linear_model_new(input_dim, learning_rate) 
         self.input_dim = input_dim
     
     def __del__(self):
         if hasattr(self, 'model_ptr'):
-            self.lib.linear_model_delete(self.model_ptr)
+            self.lib.linear_model_delete(self.model_ptr) # Libère la mémoire Rust
     
     def fit(self, X: np.ndarray, y: np.ndarray, max_iterations: int = 1000) -> float:
+        # 1. Conversion des données
+
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y, dtype=np.float64)
-        
+
+         # 2. Gestion dimensions
         if X.ndim == 1:
-            X = X.reshape(-1, 1)
+            X = X.reshape(-1, 1) # [1,2,3] → [[1],[2],[3]]
         
         n_samples, n_features = X.shape
+        #Conversion numpy → pointeurs C c types donnent lacces a linterface C
         
         X_ptr = X.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         y_ptr = y.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
@@ -60,6 +64,7 @@ class LinearModel:
             self.model_ptr, X_ptr, y_ptr, n_samples, n_features, max_iterations
         )
     
+    #Convertit n'importe quel type d'entrée en tableau numpy
     def predict(self, X: np.ndarray) -> np.ndarray:
         X = np.asarray(X, dtype=np.float64)
         
@@ -72,7 +77,7 @@ class LinearModel:
         X_ptr = X.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         results_ptr = results.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         
-        self.lib.linear_model_predict_batch(
+        self.lib.linear_model_predict_batch(# 3. Appel Rust
             self.model_ptr, X_ptr, results_ptr, n_samples, n_features
         )
         
@@ -83,20 +88,21 @@ class LinearModel:
         return np.where(predictions >= 0, 1, -1)
     
     def get_weights(self) -> np.ndarray:
-        weights = np.zeros(self.input_dim, dtype=np.float64)
-        weights_ptr = weights.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        self.lib.linear_model_get_weights(self.model_ptr, weights_ptr)
+        weights = np.zeros(self.input_dim, dtype=np.float64)# 1. Tableau vide
+        weights_ptr = weights.ctypes.data_as(ctypes.POINTER(ctypes.c_double))# 2. Pointeur
+        self.lib.linear_model_get_weights(self.model_ptr, weights_ptr)# 3. Appel Rust
         return weights
     
     def get_bias(self) -> float:
-        return self.lib.linear_model_get_bias(self.model_ptr)
+        return self.lib.linear_model_get_bias(self.model_ptr)# 3. Appel Rust
+
 
 # ==================== TESTS DES CAS DE VOTRE NOTEBOOK ====================
 def test_cas_1_linear_simple():
     """CAS 1: Linear Simple - Doit MARCHER avec modèle linéaire"""
     print("\n=== CAS 1: Linear Simple ===")
     
-    # Exactement les mêmes données que votre notebook
+    # données
     X = np.array([
         [1, 1],
         [2, 3], 
@@ -111,14 +117,14 @@ def test_cas_1_linear_simple():
     # Création et entraînement du modèle
     print("\n Entraînement du modèle...")
     model = LinearModel(input_dim=2, learning_rate=0.1)
-    final_error = model.fit(X, y, max_iterations=1000)
+    final_error = model.fit(X, y, max_iterations=1000) # 3. entraine le modelE ET ITERE LE MODELE 1000 FOIS
     
     print(f" Entraînement terminé!")
     print(f" Erreur finale: {final_error:.6f}")
     print(f"  Poids finaux: {model.get_weights()}")
     print(f" Biais final: {model.get_bias():.4f}")
     
-    # Prédictions
+    #   Prédictions
     predictions = model.predict_class(X)
     print(f" Prédictions: {predictions}")
     print(f" Vérités:     {y}")
@@ -132,17 +138,18 @@ def test_cas_2_linear_multiple():
     """CAS 2: Linear Multiple - Doit MARCHER avec modèle linéaire"""
     print("\n=== CAS 2: Linear Multiple ===")
     
-    # Génération similaire à votre notebook
-    np.random.seed(42)
+    
+    np.random.seed(42) # 1. Fixe la graine du générateur de nombres aléatoires à 42.
     
     X = np.concatenate([
+        # Génère 50 points avec 2 coordonnées  Chaque coordonnée est entre 0 et 1.Multiplie chaque valeur par 0.9 Réduit l'intervalle de [0, 1] à [0, 0.9]Ajoute 1.0 à chaque coordonnée Déplace le nuage vers le point (1, 1)
         np.random.random((50, 2)) * 0.9 + np.array([1, 1]),
         np.random.random((50, 2)) * 0.9 + np.array([2, 2])
     ])
-    y = np.concatenate([np.ones(50), -np.ones(50)])
+    y = np.concatenate([np.ones(50), -np.ones(50)]) # [1., 1., ..., 1., -1., -1., ..., -1.]↑ 50 fois ↑    ↑ 50 fois ↑
     
     print(f" Shape des données: {X.shape}")
-    print(f" Distribution: {np.unique(y, return_counts=True)}")
+    print(f" Distribution: {np.unique(y, return_counts=True)}") # Analyse la répartition des classes dans y.
     
     # Modèle
     print("\n Entraînement du modèle...")
@@ -160,10 +167,10 @@ def test_cas_2_linear_multiple():
     return model, X, y
 
 def test_cas_3_xor():
-    """CAS 3: XOR - Doit ÉCHOUER avec modèle linéaire (normal!)"""
+    """CAS 3: XOR - """
     print("\n=== CAS 3: XOR ===")
     
-    # Données XOR exactes de votre notebook
+    # Données XOR
     X = np.array([
         [1, 0],
         [0, 1], 
@@ -241,7 +248,7 @@ if __name__ == "__main__":
     model2, X2, y2 = test_cas_2_linear_multiple()
     visualiser_resultats(model2, X2, y2, "CAS 2: Linear Multiple ")
     
-    # Test Cas 3 - Doit ÉCHOUER (normal!)
+    # Test Cas 3 - Doit ÉCHOUER 
     model3, X3, y3 = test_cas_3_xor()
     visualiser_resultats(model3, X3, y3, "CAS 3: XOR  (Normal - Problème non-linéaire)")
     
