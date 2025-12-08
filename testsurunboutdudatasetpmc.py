@@ -398,7 +398,7 @@ if __name__ == "__main__":
         print("="*80)
 
 
-# Les scatter plots indiqueront  :
+# Les plots indiqueront  :
 # où se situent les guitares
 # où se situent les pianos
 # où les classes se chevauchent
@@ -410,3 +410,4 @@ if __name__ == "__main__":
 
 # L’histogramme montrera :
 # les erreurs fléchées et annotées
+
