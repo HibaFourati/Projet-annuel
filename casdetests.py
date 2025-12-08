@@ -142,7 +142,7 @@ def test_cas_2_linear_multiple():
     np.random.seed(42) # 1. Fixe la graine du générateur de nombres aléatoires à 42.
     
     X = np.concatenate([
-        # Génère 50 points avec 2 coordonnées  Chaque coordonnée est entre 0 et 1.Multiplie chaque valeur par 0.9 Réduit l'intervalle de [0, 1] à [0, 0.9]Ajoute 1.0 à chaque coordonnée Déplace le nuage vers le point (1, 1)
+        # Génère 50 points avec 2 coordonnées  Chaque coordonnée est entre 0 et 1.Multiplie chaque valeur par 0.9 Réduit l'intervalle de [0, 1] à [0, 0.9] Ajoute 1.0 à chaque coordonnée Déplace le nuage vers le point (1, 1)
         np.random.random((50, 2)) * 0.9 + np.array([1, 1]),
         np.random.random((50, 2)) * 0.9 + np.array([2, 2])
     ])
@@ -240,15 +240,15 @@ if __name__ == "__main__":
     print(" TESTS DU MODÈLE LINÉAIRE RUST - CAS DE VOTRE NOTEBOOK")
     print("=" * 60)
     
-    # Test Cas 1 - Doit MARCHER
+    # Test Cas 1 - 
     model1, X1, y1 = test_cas_1_linear_simple()
     visualiser_resultats(model1, X1, y1, "CAS 1: Linear Simple ")
     
-    # Test Cas 2 - Doit MARCHER  
+    # Test Cas 2 -  
     model2, X2, y2 = test_cas_2_linear_multiple()
     visualiser_resultats(model2, X2, y2, "CAS 2: Linear Multiple ")
     
-    # Test Cas 3 - Doit ÉCHOUER 
+    # Test Cas 3 -  
     model3, X3, y3 = test_cas_3_xor()
     visualiser_resultats(model3, X3, y3, "CAS 3: XOR  (Normal - Problème non-linéaire)")
     
