@@ -394,4 +394,19 @@ if __name__ == "__main__":
     finally:
         print("\n" + "="*80)
         print("FIN DES TESTS AVEC VISUALISATIONS")
+
         print("="*80)
+
+
+# Les scatter plots indiqueront  :
+# où se situent les guitares
+# où se situent les pianos
+# où les classes se chevauchent
+# les zones typiques
+
+# La frontière de décision indiquera :
+# où le modèle coupe l’espace
+# quelles zones correspondent à chaque classe
+
+# L’histogramme montrera :
+# les erreurs fléchées et annotées
