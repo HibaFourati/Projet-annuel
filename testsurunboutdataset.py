@@ -1,11 +1,10 @@
 import ctypes
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 import cv2
 from pathlib import Path
 
-# ======== WRAPPER RUST ========
+#WRAPPER RUST
 class LinearModel:
     def __init__(self, input_dim: int, learning_rate: float = 0.01):
         self.lib = ctypes.CDLL("./target/release/neural_networks.dll")
@@ -22,11 +21,6 @@ class LinearModel:
             ctypes.c_void_p, ctypes.POINTER(ctypes.c_double),
             ctypes.POINTER(ctypes.c_double), ctypes.c_size_t, ctypes.c_size_t
         ]
-        self.lib.linear_model_get_weights.argtypes = [
-            ctypes.c_void_p, ctypes.POINTER(ctypes.c_double)
-        ]
-        self.lib.linear_model_get_bias.argtypes = [ctypes.c_void_p]
-        self.lib.linear_model_get_bias.restype = ctypes.c_double
         self.model_ptr = self.lib.linear_model_new(input_dim, learning_rate)
         self.input_dim = input_dim
     
@@ -54,17 +48,8 @@ class LinearModel:
         results_ptr = results.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         self.lib.linear_model_predict_batch(self.model_ptr, X_ptr, results_ptr, n_samples, n_features)
         return np.where(results >= 0, 1, -1)
-    
-    def get_weights(self) -> np.ndarray:
-        weights = np.zeros(self.input_dim, dtype=np.float64)
-        weights_ptr = weights.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        self.lib.linear_model_get_weights(self.model_ptr, weights_ptr)
-        return weights
-    
-    def get_bias(self) -> float:
-        return self.lib.linear_model_get_bias(self.model_ptr)
 
-# ======== DATASET RÉEL ========
+#DATASET
 def extraire_features(img_path, taille=(64, 64)):
     try:
         img = cv2.imread(str(img_path))
@@ -89,120 +74,232 @@ def extraire_features(img_path, taille=(64, 64)):
     except:
         return None
 
-def charger_bout_dataset():
+def charger_dataset():
     X, y = [], []
     for instrument, label in [('guitare', 1), ('piano', -1)]:
         path = Path(f"dataset/{instrument}")
         if path.exists():
-            images = list(path.glob("*.[pj][np]g"))[:5]  # 5 images max
+            images = list(path.glob("*.[pj][np]g"))[:6]
             for img in images:
                 features = extraire_features(img)
                 if features is not None:
                     X.append(features)
                     y.append(label)
+    
+    if len(X) == 0:
+        print("Aucune image trouvée ")
+        return None, None
+    
     return np.array(X), np.array(y)
 
-# ======== TESTS ========
-def test_sur_dataset():
-    print("\n1. APPLICATION SUR BOUT DE DATASET")
-    print("="*40)
-    X, y = charger_bout_dataset()
-    if len(X) == 0:
-        print("Aucune image trouvée !")
-        return
+# FONCTIONS UTILES
+def split_manuel(X, y, test_size=0.2):
+    """Split"""
+    n_samples = len(X)
+    indices = np.arange(n_samples)
+    np.random.seed(42)
+    np.random.shuffle(indices)
     
-    # Normalisation simple
-    X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-6)
+    split_idx = int(n_samples * (1 - test_size))
+    train_idx = indices[:split_idx]
+    test_idx = indices[split_idx:]
     
-    # Split simple (80/20)
-    split = int(0.8 * len(X))
-    X_train, y_train = X[:split], y[:split]
-    X_test, y_test = X[split:], y[split:]
-    
-    print(f"Images: {len(X)} (train: {len(X_train)}, test: {len(X_test)})")
-    print(f"Features: {X.shape[1]}")
-    
-    # Modèle
-    model = LinearModel(input_dim=X_train.shape[1], learning_rate=0.01)
-    error = model.fit(X_train, y_train, max_iterations=1000)
-    train_acc = np.mean(model.predict_class(X_train) == y_train) * 100
-    test_acc = np.mean(model.predict_class(X_test) == y_test) * 100
-    
-    print(f"Erreur: {error:.6f}")
-    print(f"Accuracy - Train: {train_acc:.1f}%, Test: {test_acc:.1f}%")
-    
-    # Visualisation simple
-    if X.shape[1] >= 2:
-        plt.figure(figsize=(8, 6))
-        colors = ['blue' if label == 1 else 'red' for label in y]
-        plt.scatter(X[:, 0], X[:, 1], c=colors, alpha=0.6)
-        plt.title("Visualisation des 2 premières features")
-        plt.xlabel("Feature 1")
-        plt.ylabel("Feature 2")
-        plt.grid(True, alpha=0.3)
-        plt.show()
-    
-    return test_acc
+    return X[train_idx], X[test_idx], y[train_idx], y[test_idx]
 
-def test_transformation_non_lineaire():
-    print("\n2. TRANSFORMATION NON-LINÉAIRE POUR XOR")
-    print("="*40)
+def normaliser_manuel(X_train, X_test):
+    """Normalisation"""
+    mean = X_train.mean(axis=0)
+    std = X_train.std(axis=0) + 1e-6
+    return (X_train - mean) / std, (X_test - mean) / std
+
+def calculer_matrice_confusion(y_true, y_pred):
+    """matrice de confusion"""
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
     
-    # XOR
-    X = np.array([[1, 0], [0, 1], [0, 0], [1, 1]], dtype=np.float64)
-    y = np.array([1, 1, -1, -1], dtype=np.float64)
+    true_idx = np.where(y_true == 1, 0, 1)
+    pred_idx = np.where(y_pred == 1, 0, 1)
     
-    # Sans transformation
-    model1 = LinearModel(input_dim=2, learning_rate=0.1)
-    model1.fit(X, y, max_iterations=500)
-    acc1 = np.mean(model1.predict_class(X) == y) * 100
+    matrice = np.zeros((2, 2), dtype=int)
+    for t, p in zip(true_idx, pred_idx):
+        matrice[t, p] += 1
     
-    # Avec transformation
-    X_transformed = np.column_stack([
-        X, X[:, 0]*X[:, 1], X[:, 0]**2, X[:, 1]**2,
-        np.sin(X[:, 0]), np.exp(-X[:, 0]**2)
-    ])
-    model2 = LinearModel(input_dim=X_transformed.shape[1], learning_rate=0.05)
-    model2.fit(X_transformed, y, max_iterations=1000)
-    acc2 = np.mean(model2.predict_class(X_transformed) == y) * 100
+    return matrice
+
+# TESTS
+def test_matrices_confusion():
+    """matrice de confusion"""
+    print("\n" + "="*60)
+    print("matrice de confusion")
+    print("="*60)
     
-    print(f"Sans transformation: {acc1:.1f}%")
-    print(f"Avec transformation: {acc2:.1f}%")
-    print(f"Amélioration: {acc2-acc1:+.1f}%")
+    X, y = charger_dataset()
+    if X is None:
+        return None, None, None, None
     
-    # Visualisation
-    plt.figure(figsize=(10, 4))
-    plt.subplot(1, 2, 1)
-    plt.scatter(X[:, 0], X[:, 1], c=['blue', 'blue', 'red', 'red'])
-    plt.title("XOR Original")
-    plt.grid(True, alpha=0.3)
+
+    X_train, X_test, y_train, y_test = split_manuel(X, y, test_size=0.3)
     
-    plt.subplot(1, 2, 2)
-    plt.bar(['Sans', 'Avec'], [acc1, acc2], color=['red', 'green'])
-    plt.ylim([0, 110])
-    plt.title("Comparaison des accuracies")
-    plt.grid(True, alpha=0.3)
+    X_train_norm, X_test_norm = normaliser_manuel(X_train, X_test)
+    
+    print(f"Données chargées: {len(X)} échantillons")
+    print(f"Train: {len(X_train_norm)} échantillons")
+    print(f"Test: {len(X_test_norm)} échantillons")
+    
+    model = LinearModel(input_dim=X_train_norm.shape[1], learning_rate=0.01)
+    model.fit(X_train_norm, y_train, max_iterations=500)
+
+    train_pred = model.predict_class(X_train_norm)
+    test_pred = model.predict_class(X_test_norm)
+    
+    train_acc = np.mean(train_pred == y_train) * 100
+    test_acc = np.mean(test_pred == y_test) * 100
+    
+    print(f"\nAccuracy Train: {train_acc:.1f}%")
+    print(f"Accuracy Test:  {test_acc:.1f}%")
+    
+    train_cm = calculer_matrice_confusion(y_train, train_pred)
+    test_cm = calculer_matrice_confusion(y_test, test_pred)
+    
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    axes[0].imshow(train_cm, cmap='Blues')
+    axes[0].set_title(f'TRAIN - Accuracy: {train_acc:.1f}%')
+    axes[0].set_xticks([0, 1])
+    axes[0].set_yticks([0, 1])
+    axes[0].set_xticklabels(['Guitare (1)', 'Piano (-1)'])
+    axes[0].set_yticklabels(['Guitare (1)', 'Piano (-1)'])
+    axes[0].set_ylabel('Vraie classe')
+    axes[0].set_xlabel('Prédite classe')
+    for i in range(2):
+        for j in range(2):
+            axes[0].text(j, i, str(train_cm[i, j]), 
+                        ha='center', va='center', 
+                        color='white' if train_cm[i, j] > train_cm.max()/2 else 'black',
+                        fontweight='bold')
+    
+    axes[1].imshow(test_cm, cmap='Reds')
+    axes[1].set_title(f'TEST - Accuracy: {test_acc:.1f}%')
+    axes[1].set_xticks([0, 1])
+    axes[1].set_yticks([0, 1])
+    axes[1].set_xticklabels(['Guitare (1)', 'Piano (-1)'])
+    axes[1].set_yticklabels(['Guitare (1)', 'Piano (-1)'])
+    axes[1].set_ylabel('Vraie classe')
+    axes[1].set_xlabel('Prédite classe')
+    for i in range(2):
+        for j in range(2):
+            axes[1].text(j, i, str(test_cm[i, j]), 
+                        ha='center', va='center', 
+                        color='white' if test_cm[i, j] > test_cm.max()/2 else 'black',
+                        fontweight='bold')
+    
+    plt.tight_layout()
     plt.show()
     
-    return acc2
+    return X_train_norm, X_test_norm, y_train, y_test
 
-# ======== MAIN ========
+def test_courbe_loss():
+    """TEST 2: Courbe de loss"""
+    print("\n" + "="*60)
+    print("courbe de loss")
+    print("="*60)
+    
+    # Chargements de données 
+    X, y = charger_dataset()
+    if X is None:
+        return
+    
+    # Split
+    X_train, X_test, y_train, y_test = split_manuel(X, y, test_size=0.3)
+    
+    # normalisation
+    X_train_norm, X_test_norm = normaliser_manuel(X_train, X_test)
+    
+
+    model = LinearModel(input_dim=X_train_norm.shape[1], learning_rate=0.01)
+    
+    train_losses = []
+    test_losses = []
+    epochs = 100
+    
+    
+    for epoch in range(epochs):
+
+        train_loss = model.fit(X_train_norm, y_train, max_iterations=1)
+        train_losses.append(train_loss)
+        test_pred = model.predict_class(X_test_norm)
+        test_accuracy = np.mean(test_pred == y_test)
+        test_loss = 1.0 - test_accuracy 
+        test_losses.append(test_loss)
+        
+        if epoch % 20 == 0:
+            print(f"  Epoque {epoch}: train_loss={train_loss:.4f}, test_loss={test_loss:.4f}")
+    
+
+    if test_losses[-1] > train_losses[-1] * 1.5:
+        print(f"\n  overfitting!")
+        print(f"   Train loss finale: {train_losses[-1]:.4f}")
+        print(f"   Test loss finale:  {test_losses[-1]:.4f}")
+        print(f"   Ratio: {test_losses[-1]/train_losses[-1]:.1f}x")
+    elif test_losses[-1] > 0.5:
+        print(f"\n underfitting!")
+        print(f"   Les deux losses sont élevées (>0.5)")
+    else:
+        print(f"\n  Bon apprentissage")
+        print(f"   Les deux losses convergent")
+    
+    plt.figure(figsize=(10, 6))
+    
+    plt.plot(train_losses, label='Train Loss', linewidth=2, color='blue')
+    plt.plot(test_losses, label='Test Loss', linewidth=2, color='red')
+    
+    if test_losses[-1] > train_losses[-1]:
+        plt.fill_between(range(len(train_losses)), train_losses, test_losses, 
+                        where=(np.array(test_losses) > np.array(train_losses)),
+                        color='red', alpha=0.2, label='Zone overfitting')
+    
+    plt.xlabel('Epoque')
+    plt.ylabel('Loss')
+    plt.title('Courbe de Loss')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+
+    if test_losses[-1] > train_losses[-1] * 1.5:
+        plt.text(0.5, 0.9, 'overfitting', transform=plt.gca().transAxes,
+                color='red', fontsize=14, ha='center', fontweight='bold')
+    elif test_losses[-1] > 0.5:
+        plt.text(0.5, 0.9, 'underfitting', transform=plt.gca().transAxes,
+                color='orange', fontsize=14, ha='center', fontweight='bold')
+    else:
+        plt.text(0.5, 0.9, 'apprentissage bon', transform=plt.gca().transAxes,
+                color='green', fontsize=14, ha='center', fontweight='bold')
+    
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
-    print("PROJET - MODÈLE LINÉAIRE RUST")
-    print("="*40)
+    print("="*60)
+    print("="*60)
     
-    # 1. Sur dataset
-    acc_dataset = test_sur_dataset()
+
+    dll_path = "./target/release/neural_networks.dll"
+    if not Path(dll_path).exists():
+        print(f"erreur {dll_path}")
+        exit(1)
     
-    # 2. Transformation non-linéaire
-    acc_xor = test_transformation_non_lineaire()
+    #  Matrices de confusion
+    print("\n" + "="*60)
+    print("matrice de confusion")
+    print("="*60)
     
-    # 3. Résumé
-    print("\n" + "="*40)
-    print("RÉSUMÉ DES RÉSULTATS")
-    print("="*40)
-    print(f"1. Dataset: {acc_dataset:.1f}% sur test")
-    print(f"2. XOR transformé: {acc_xor:.1f}%")
-    print("\nPoints validés:")
-    print("✓ Modèle linéaire testé sur dataset réel")
-    print("✓ Transformation non-linéaire pour cas 'KO'")
+    result = test_matrices_confusion()
+    
+    if result[0] is not None:
+        # Courbe de loss
+        print("\n" + "="*60)
+        print("courbe de loss")
+        print("="*60)
+        
+        test_courbe_loss()
