@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from pathlib import Path
+from collections import Counter
 
-# Structure de configuration
 class PMCConfig(ctypes.Structure):
     _fields_ = [
         ("n_inputs", ctypes.c_uint),
@@ -13,9 +13,8 @@ class PMCConfig(ctypes.Structure):
         ("learning_rate", ctypes.c_double),
     ]
 
-# WRAPPER PMC
 class PMC:
-    def __init__(self, n_inputs: int, n_hidden: int = 2, learning_rate: float = 0.01):  # Même learning_rate
+    def __init__(self, n_inputs: int, n_hidden: int = 1, learning_rate: float = 0.01):
         dll_path = "./target/release/neural_networks.dll"
         
         print(f"Chargement de: {dll_path}")
@@ -57,18 +56,18 @@ class PMC:
             n_inputs=n_inputs,
             n_hidden=n_hidden,
             n_outputs=1,
-            learning_rate=learning_rate  # 0.01 comme le modèle linéaire
+            learning_rate=learning_rate
         )
      
         self.model_ptr = self.lib.pmc_new(ctypes.byref(config))
         
         if not self.model_ptr:
-            raise RuntimeError("Échec de la création du modèle")
+            raise RuntimeError("Echec de la creation du modele")
         
         self.n_inputs = n_inputs
         self.n_hidden = n_hidden
         
-        print(f"PMC créé: architecture {n_inputs} -> {n_hidden} -> 1 (learning_rate: {learning_rate})")
+        print(f"PMC cree: architecture {n_inputs} -> {n_hidden} -> 1 (learning_rate: {learning_rate})")
     
     def __del__(self):
         if hasattr(self, 'model_ptr') and self.model_ptr:
@@ -84,7 +83,7 @@ class PMC:
         n_samples, n_features = X.shape
         
         if n_features != self.n_inputs:
-            raise ValueError(f"Attendu {self.n_inputs} features, reçu {n_features}")
+            raise ValueError(f"Attendu {self.n_inputs} features, recu {n_features}")
         
         X_ptr = X.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         y_ptr = y.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
@@ -104,7 +103,7 @@ class PMC:
         n_samples, n_features = X.shape
         
         if n_features != self.n_inputs:
-            raise ValueError(f"Attendu {self.n_inputs} features, reçu {n_features}")
+            raise ValueError(f"Attendu {self.n_inputs} features, recu {n_features}")
         
         results = np.zeros(n_samples, dtype=np.float64)
         
@@ -129,14 +128,13 @@ class PMC:
         n_samples, n_features = X.shape
         
         if n_features != self.n_inputs:
-            raise ValueError(f"Attendu {self.n_inputs} features, reçu {n_features}")
+            raise ValueError(f"Attendu {self.n_inputs} features, recu {n_features}")
         
         X_ptr = X.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         y_ptr = y.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         
         return self.lib.pmc_accuracy(self.model_ptr, X_ptr, y_ptr, n_samples, n_features)
 
-# FONCTIONS COMMUNES (identiques au modèle linéaire)
 def extraire_features(img_path, taille=(64, 64)):
     try:
         img = cv2.imread(str(img_path))
@@ -161,12 +159,17 @@ def extraire_features(img_path, taille=(64, 64)):
     except:
         return None
 
-def charger_dataset():
+def charger_dataset(n_images_per_class=6):
     X, y = [], []
-    for instrument, label in [('guitare', 1), ('piano', -1)]:
+    classes = [('guitare', 1), ('piano', -1), ('violon', 0)]
+    
+    for instrument, label in classes:
         path = Path(f"dataset/{instrument}")
         if path.exists():
-            images = list(path.glob("*.[pj][np]g"))[:13]  # Même nombre d'images
+            images = list(path.glob("*.[pj][np]g"))
+            if len(images) > n_images_per_class:
+                images = images[:n_images_per_class]
+            print(f"  {instrument}: {len(images)} images")
             for img in images:
                 features = extraire_features(img)
                 if features is not None:
@@ -174,12 +177,18 @@ def charger_dataset():
                     y.append(label)
     
     if len(X) == 0:
-        print("Aucune image trouvée")
+        print("Aucune image trouvee")
         return None, None
+    
+    print(f"\nChargement total: {len(X)} echantillons")
+    class_counts = Counter(y)
+    for label, count in sorted(class_counts.items()):
+        instrument = {1: 'Guitare', -1: 'Piano', 0: 'Violon'}[label]
+        print(f"  {instrument} ({label}): {count} echantillons")
     
     return np.array(X), np.array(y)
 
-def split_manuel(X, y, test_size=0.2):
+def split_manuel(X, y, test_size=0.3):
     n_samples = len(X)
     indices = np.arange(n_samples)
     np.random.seed(42)
@@ -196,211 +205,395 @@ def normaliser_manuel(X_train, X_test):
     std = X_train.std(axis=0) + 1e-6
     return (X_train - mean) / std, (X_test - mean) / std
 
-def calculer_matrice_confusion(y_true, y_pred):
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
+def calculer_matrice_confusion(y_true, y_pred, classes):
+    n_classes = len(classes)
+    cm = np.zeros((n_classes, n_classes), dtype=int)
     
-    true_idx = np.where(y_true == 1, 0, 1)
-    pred_idx = np.where(y_pred == 1, 0, 1)
+    label_to_index = {label: i for i, label in enumerate(classes)}
     
-    matrice = np.zeros((2, 2), dtype=int)
-    for t, p in zip(true_idx, pred_idx):
-        matrice[t, p] += 1
+    for true, pred in zip(y_true, y_pred):
+        true_idx = label_to_index[true]
+        pred_idx = label_to_index[pred]
+        cm[true_idx][pred_idx] += 1
     
-    return matrice
+    return cm
 
-# TESTS PMC AVEC MÊMES CONFIGURATIONS
-def test_pmc_matrices_confusion():
-    print("\n" + "="*60)
-    print("PMC - Matrices de confusion")
-    print("="*60)
+def calculer_metrics_par_classe(cm, classes):
+    n_classes = len(classes)
+    precision = []
+    recall = []
+    f1 = []
     
-    X, y = charger_dataset()  # Même fonction de chargement
-    if X is None:
-        return None, None, None, None
+    for i in range(n_classes):
+        tp = cm[i, i]
+        fp = np.sum(cm[:, i]) - tp
+        fn = np.sum(cm[i, :]) - tp
+        
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0
+        rec = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1_score = 2 * (prec * rec) / (prec + rec) if (prec + rec) > 0 else 0
+        
+        precision.append(prec)
+        recall.append(rec)
+        f1.append(f1_score)
     
-    X_train, X_test, y_train, y_test = split_manuel(X, y, test_size=0.3)  # Même split
+    return precision, recall, f1
+
+def afficher_matrice_confusion(cm, classes, accuracy):
+    fig, ax = plt.subplots(figsize=(8, 6))
     
-    X_train_norm, X_test_norm = normaliser_manuel(X_train, X_test)  # Même normalisation
+    im = ax.imshow(cm, cmap='Blues')
     
-    print(f"Données chargées: {len(X)} échantillons")
-    print(f"Train: {len(X_train_norm)} échantillons")
-    print(f"Test: {len(X_test_norm)} échantillons")
-    print(f"Features par échantillon: {X_train_norm.shape[1]}")
+    for i in range(len(classes)):
+        for j in range(len(classes)):
+            color = 'white' if cm[i, j] > cm.max() / 2 else 'black'
+            ax.text(j, i, str(cm[i, j]),
+                   ha='center', va='center',
+                   color=color, fontweight='bold', fontsize=12)
     
-    print("\nEntraînement du PMC...")
-    model = PMC(n_inputs=X_train_norm.shape[1], n_hidden=1, learning_rate=0.01)  # Même LR
-    error = model.fit(X_train_norm, y_train, max_iterations=500)  # Même nombre d'itérations
+    ax.set_xticks(np.arange(len(classes)))
+    ax.set_yticks(np.arange(len(classes)))
+    ax.set_xticklabels(classes)
+    ax.set_yticklabels(classes)
+    ax.set_xlabel('Predite classe', fontsize=12)
+    ax.set_ylabel('Vraie classe', fontsize=12)
+    ax.set_title(f'Matrice de Confusion - 3 Classes\nAccuracy: {accuracy:.1f}%', 
+                fontsize=14, fontweight='bold')
     
-    print(f"Erreur MSE finale: {error:.4f}")
-    
-    train_pred = model.predict_class(X_train_norm)
-    test_pred = model.predict_class(X_test_norm)
-    
-    train_acc = np.mean(train_pred == y_train) * 100
-    test_acc = np.mean(test_pred == y_test) * 100
-    
-    print(f"\nRÉSULTATS PMC :")
-    print(f"  Accuracy Train: {train_acc:.1f}%")
-    print(f"  Accuracy Test:  {test_acc:.1f}%")
-    
-    if train_acc > 95 and test_acc < 70:
-        print(f"  OVERFITTING DÉTECTÉ !")
-    elif train_acc < 70 and test_acc < 70:
-        print(f"  UNDERFITTING DÉTECTÉ !")
-    else:
-        print(f"  BON ÉQUILIBRE TRAIN/TEST")
-    
-    train_cm = calculer_matrice_confusion(y_train, train_pred)
-    test_cm = calculer_matrice_confusion(y_test, test_pred)
-    
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-    
-    axes[0].imshow(train_cm, cmap='Blues', interpolation='nearest')
-    axes[0].set_title(f'PMC - TRAIN\nAccuracy: {train_acc:.1f}%', fontsize=14, fontweight='bold')
-    axes[0].set_xticks([0, 1])
-    axes[0].set_yticks([0, 1])
-    axes[0].set_xticklabels(['Guitare (1)', 'Piano (-1)'], fontsize=12)
-    axes[0].set_yticklabels(['Guitare (1)', 'Piano (-1)'], fontsize=12)
-    axes[0].set_ylabel('Vraie classe', fontsize=12)
-    axes[0].set_xlabel('Prédite classe', fontsize=12)
-    
-    for i in range(2):
-        for j in range(2):
-            color = 'white' if train_cm[i, j] > train_cm.max()/2 else 'black'
-            axes[0].text(j, i, str(train_cm[i, j]), 
-                        ha='center', va='center', 
-                        color=color, fontsize=16, fontweight='bold')
-    
-    axes[1].imshow(test_cm, cmap='Reds', interpolation='nearest')
-    axes[1].set_title(f'PMC - TEST\nAccuracy: {test_acc:.1f}%', fontsize=14, fontweight='bold')
-    axes[1].set_xticks([0, 1])
-    axes[1].set_yticks([0, 1])
-    axes[1].set_xticklabels(['Guitare (1)', 'Piano (-1)'], fontsize=12)
-    axes[1].set_yticklabels(['Guitare (1)', 'Piano (-1)'], fontsize=12)
-    axes[1].set_ylabel('Vraie classe', fontsize=12)
-    axes[1].set_xlabel('Prédite classe', fontsize=12)
-    
-    for i in range(2):
-        for j in range(2):
-            color = 'white' if test_cm[i, j] > test_cm.max()/2 else 'black'
-            axes[1].text(j, i, str(test_cm[i, j]), 
-                        ha='center', va='center', 
-                        color=color, fontsize=16, fontweight='bold')
-    
-    if train_acc > 95 and test_acc < 70:
-        plt.figtext(0.5, 0.01, "OVERFITTING", 
-                   ha='center', fontsize=12, color='red', fontweight='bold')
-    elif train_acc < 70 and test_acc < 70:
-        plt.figtext(0.5, 0.01, "UNDERFITTING", 
-                   ha='center', fontsize=12, color='orange', fontweight='bold')
-    
+    plt.colorbar(im, ax=ax)
     plt.tight_layout()
     plt.show()
-    
-    return X_train_norm, X_test_norm, y_train, y_test, model
 
-def test_pmc_courbe_loss():
+class MultiClassPMC:
+    def __init__(self, input_dim, n_hidden=1, learning_rate=0.01):
+        self.models = {
+            'guitare': PMC(input_dim, n_hidden, learning_rate),
+            'piano': PMC(input_dim, n_hidden, learning_rate),
+            'violon': PMC(input_dim, n_hidden, learning_rate)
+        }
+        self.class_labels = {'guitare': 1, 'piano': -1, 'violon': 0}
+        self.label_names = {1: 'Guitare', -1: 'Piano', 0: 'Violon'}
+        self.input_dim = input_dim
+        
+    def fit(self, X_train, y_train, max_iterations=500):
+        print("\nEntrainement des modeles PMC one-vs-all...")
+        
+        for class_name, model in self.models.items():
+            label = self.class_labels[class_name]
+            y_binary = np.where(y_train == label, 1, -1)
+            print(f"  {class_name.capitalize()} vs autres...")
+            model.fit(X_train, y_binary, max_iterations)
+            
+    def predict(self, X, method='score'):
+        if method == 'vote':
+            return self._predict_vote(X)
+        elif method == 'score':
+            return self._predict_score(X)
+        else:
+            return self._predict_score(X)
+    
+    def _predict_vote(self, X):
+        predictions = []
+        
+        for class_name, model in self.models.items():
+            pred = model.predict_class(X)
+            predictions.append((class_name, pred))
+        
+        final_preds = []
+        n_samples = len(X)
+        
+        for i in range(n_samples):
+            votes = []
+            for class_name, pred_array in predictions:
+                if pred_array[i] == 1:
+                    votes.append(class_name)
+            
+            if len(votes) == 1:
+                final_class = votes[0]
+            elif len(votes) > 1:
+                final_class = votes[0]
+            else:
+                final_class = 'guitare'
+            
+            final_preds.append(self.class_labels[final_class])
+        
+        return np.array(final_preds)
+    
+    def _predict_score(self, X):
+        scores = {}
+        
+        for class_name, model in self.models.items():
+            scores[class_name] = model.predict(X)
+        
+        n_samples = len(X)
+        final_preds = []
+        
+        for i in range(n_samples):
+            best_score = -np.inf
+            best_class = 'guitare'
+            
+            for class_name, score_array in scores.items():
+                if score_array[i] > best_score:
+                    best_score = score_array[i]
+                    best_class = class_name
+            
+            final_preds.append(self.class_labels[best_class])
+        
+        return np.array(final_preds)
+
+def test_pmc_3classes():
     print("\n" + "="*60)
-    print("PMC - Courbe de Loss")
+    print("TEST PMC - 3 CLASSES")
     print("="*60)
     
-    X, y = charger_dataset()  # Mêmes données
+    X, y = charger_dataset(n_images_per_class=6)
     if X is None:
         return
     
-    X_train, X_test, y_train, y_test = split_manuel(X, y, test_size=0.3)  # Même split
+    X_train, X_test, y_train, y_test = split_manuel(X, y, test_size=0.3)
     
-    X_train_norm, X_test_norm = normaliser_manuel(X_train, X_test)  # Même normalisation
+    X_train_norm, X_test_norm = normaliser_manuel(X_train, X_test)
     
-    print(f"PMC avec {len(X_train_norm)} échantillons d'entraînement")
-    print(f"Architecture: {X_train_norm.shape[1]} -> 1 -> 1")  # Même architecture simple
+    print(f"\nRepartition train/test:")
+    print(f"  Train: {len(X_train_norm)} echantillons")
+    print(f"  Test: {len(X_test_norm)} echantillons")
     
-    model = PMC(n_inputs=X_train_norm.shape[1], n_hidden=1, learning_rate=0.01)  # Mêmes paramètres
+    classifier = MultiClassPMC(input_dim=X_train_norm.shape[1], n_hidden=1, learning_rate=0.01)
+    classifier.fit(X_train_norm, y_train, max_iterations=500)
+    
+    pred_test = classifier.predict(X_test_norm, method='score')
+    
+    accuracy = np.mean(pred_test == y_test) * 100
+    print(f"\nAccuracy globale: {accuracy:.1f}%")
+    
+    classes = [-1, 0, 1]
+    cm = calculer_matrice_confusion(y_test, pred_test, classes)
+    
+    afficher_matrice_confusion(cm, ['Piano', 'Violon', 'Guitare'], accuracy)
+    
+    precision, recall, f1 = calculer_metrics_par_classe(cm, classes)
+    
+    print("\nMetriques par classe:")
+    print("-"*40)
+    for i, class_label in enumerate(classes):
+        class_name = classifier.label_names[class_label]
+        print(f"\n{class_name}:")
+        print(f"  Precision: {precision[i]:.2%}")
+        print(f"  Rappel: {recall[i]:.2%}")
+        print(f"  F1-score: {f1[i]:.2%}")
+    
+    print("\n" + "="*60)
+    print("ANALYSE DES ERREURS")
+    print("="*60)
+    
+    error_indices = np.where(pred_test != y_test)[0]
+    if len(error_indices) > 0:
+        print(f"Nombre d'erreurs: {len(error_indices)}/{len(y_test)}")
+        
+        for idx in error_indices:
+            true_label = y_test[idx]
+            pred_label = pred_test[idx]
+            true_name = classifier.label_names[true_label]
+            pred_name = classifier.label_names[pred_label]
+            print(f"  Echantillon {idx}: Vrai={true_name}, Predit={pred_name}")
+    else:
+        print("Aucune erreur !")
+    
+    return classifier, X_train_norm, X_test_norm, y_train, y_test
+
+def test_pmc_courbe_loss_3classes():
+    print("\n" + "="*60)
+    print("PMC - COURBE DE LOSS (3 classes)")
+    print("="*60)
+    
+    X, y = charger_dataset(n_images_per_class=6)
+    if X is None:
+        return
+    
+    X_train, X_test, y_train, y_test = split_manuel(X, y, test_size=0.3)
+    
+    X_train_norm, X_test_norm = normaliser_manuel(X_train, X_test)
+    
+    classifier = MultiClassPMC(input_dim=X_train_norm.shape[1], n_hidden=1, learning_rate=0.01)
     
     train_losses = []
     test_losses = []
-    epochs = 100  # Même nombre d'époques
+    epochs = 50
     
-    print("\nEntraînement en cours...")
+    print("\nEntrainement en cours...")
     
-    for epoch in range(epochs):
-        # 1 itération par époque (comme le modèle linéaire)
-        train_loss = model.fit(X_train_norm, y_train, max_iterations=1)
-        train_losses.append(train_loss)
+    for class_name, model in classifier.models.items():
+        label = classifier.class_labels[class_name]
+        y_binary = np.where(y_train == label, 1, -1)
         
-        # Calcul de la loss sur le test (MSE)
-        test_pred = model.predict(X_test_norm)
-        test_mse = np.mean((test_pred - y_test) ** 2)
-        test_losses.append(test_mse)
+        print(f"\nModele {class_name.capitalize()} vs autres:")
+        class_train_losses = []
+        class_test_losses = []
         
-        if epoch % 20 == 0:
-            print(f"  Époque {epoch:3d}: train_loss={train_loss:.4f}, test_loss={test_mse:.4f}")
+        for epoch in range(epochs):
+            train_loss = model.fit(X_train_norm, y_binary, max_iterations=1)
+            class_train_losses.append(train_loss)
+            
+            test_pred = model.predict(X_test_norm)
+            y_test_binary = np.where(y_test == label, 1, -1)
+            test_mse = np.mean((test_pred - y_test_binary) ** 2)
+            class_test_losses.append(test_mse)
+            
+            if epoch % 10 == 0:
+                print(f"  Epoque {epoch:3d}: train_loss={train_loss:.4f}, test_loss={test_mse:.4f}")
+        
+        train_losses.append(class_train_losses)
+        test_losses.append(class_test_losses)
     
-    print(f"\n  Train loss finale: {train_losses[-1]:.4f}")
-    print(f"  Test loss finale:  {test_losses[-1]:.4f}")
+    plt.figure(figsize=(12, 6))
     
-    if test_losses[-1] > train_losses[-1] * 1.5:
-        print(f"  OVERFITTING ! (ratio: {test_losses[-1]/train_losses[-1]:.1f}x)")
-        status = "overfitting"
-        status_color = "red"
-    elif test_losses[-1] > 0.5 and train_losses[-1] > 0.5:
-        print(f"  UNDERFITTING !")
-        status = "underfitting"
-        status_color = "orange"
-    else:
-        print(f"  Bon équilibre")
-        status = "bon apprentissage"
-        status_color = "green"
+    colors = ['blue', 'green', 'red']
+    class_names = ['Guitare', 'Piano', 'Violon']
     
-    plt.figure(figsize=(12, 7))
+    for i in range(3):
+        plt.plot(train_losses[i], label=f'Train Loss ({class_names[i]})', 
+                linewidth=2, color=colors[i], alpha=0.7)
+        plt.plot(test_losses[i], label=f'Test Loss ({class_names[i]})', 
+                linewidth=2, color=colors[i], alpha=0.7, linestyle='--')
     
-    plt.plot(train_losses, label='Train Loss', linewidth=2.5, color='blue', alpha=0.8)
-    plt.plot(test_losses, label='Test Loss', linewidth=2.5, color='red', alpha=0.8)
-    
-    if test_losses[-1] > train_losses[-1] * 1.5:
-        plt.fill_between(range(epochs), train_losses, test_losses, 
-                        where=(np.array(test_losses) > np.array(train_losses)),
-                        color='red', alpha=0.2, label='Zone d\'overfitting')
-    
-    plt.xlabel('Époque', fontsize=14)
+    plt.xlabel('Epoque', fontsize=14)
     plt.ylabel('Loss (MSE)', fontsize=14)
-    plt.title('PMC - Évolution de la Loss', fontsize=16, fontweight='bold')
-    plt.legend(fontsize=12)
+    plt.title('PMC - Evolution de la Loss (3 classes)', fontsize=16, fontweight='bold')
+    plt.legend(fontsize=10)
     plt.grid(True, alpha=0.3)
-    
-    plt.text(0.02, 0.98, f'État: {status}', transform=plt.gca().transAxes,
-            color=status_color, fontsize=14, ha='left', va='top', 
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-    
-    plt.text(0.02, 0.92, f'Loss finale - Train: {train_losses[-1]:.4f}', 
-            transform=plt.gca().transAxes, fontsize=11, ha='left', va='top')
-    plt.text(0.02, 0.88, f'Loss finale - Test:  {test_losses[-1]:.4f}', 
-            transform=plt.gca().transAxes, fontsize=11, ha='left', va='top')
     
     plt.tight_layout()
     plt.show()
 
-if __name__ == "__main__":
-    print("="*60)
-    print("Tests du PMC avec mêmes configurations que le modèle linéaire")
+def test_prediction_interactive_pmc(classifier, X_mean, X_std):
+    print("\n" + "="*60)
+    print("TEST INTERACTIF PMC - PREDICTION D'UNE NOUVELLE IMAGE")
     print("="*60)
     
+    while True:
+        print("\nOptions:")
+        print("1. Tester avec une image du dataset")
+        print("2. Tester avec une image personnelle")
+        print("3. Quitter")
+        
+        choix = input("\nVotre choix (1-3): ").strip()
+        
+        if choix == "1":
+            print("\nClasses disponibles:")
+            print("1. Guitare")
+            print("2. Piano")
+            print("3. Violon")
+            
+            classe_choix = input("\nChoisir une classe (1-3): ").strip()
+            classes_dict = {'1': 'guitare', '2': 'piano', '3': 'violon'}
+            
+            if classe_choix in classes_dict:
+                instrument = classes_dict[classe_choix]
+                path = Path(f"dataset/{instrument}")
+                if path.exists():
+                    images = list(path.glob("*.[pj][np]g"))
+                    if images:
+                        test_img = images[0]
+                        print(f"\nTest sur: {test_img.name}")
+                        
+                        features = extraire_features(test_img)
+                        if features is not None:
+                            features_norm = (features - X_mean) / X_std
+                            
+                            pred = classifier.predict(features_norm.reshape(1, -1))
+                            pred_label = pred[0]
+                            pred_name = classifier.label_names[pred_label]
+                            true_name = instrument.capitalize()
+                            
+                            print(f"  Vrai: {true_name}")
+                            print(f"  Predit: {pred_name}")
+                            print(f"  {'CORRECT' if pred_name.lower() == instrument else 'INCORRECT'}")
+                            
+                            img = cv2.imread(str(test_img))
+                            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                            
+                            plt.figure(figsize=(6, 5))
+                            plt.imshow(img_rgb)
+                            plt.title(f"Image: {test_img.name}\nVrai: {true_name} | Predit: {pred_name}", 
+                                    fontsize=12)
+                            plt.axis('off')
+                            plt.tight_layout()
+                            plt.show()
+        
+        elif choix == "2":
+            img_path = input("\nChemin de l'image: ").strip()
+            if Path(img_path).exists():
+                features = extraire_features(img_path)
+                if features is not None:
+                    features_norm = (features - X_mean) / X_std
+                    
+                    pred = classifier.predict(features_norm.reshape(1, -1))
+                    pred_label = pred[0]
+                    pred_name = classifier.label_names[pred_label]
+                    
+                    print(f"\nPrediction: {pred_name}")
+                    
+                    img = cv2.imread(img_path)
+                    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    
+                    plt.figure(figsize=(6, 5))
+                    plt.imshow(img_rgb)
+                    plt.title(f"Prediction: {pred_name}", fontsize=14, fontweight='bold')
+                    plt.axis('off')
+                    plt.tight_layout()
+                    plt.show()
+                else:
+                    print("Impossible d'extraire les caracteristiques de l'image")
+            else:
+                print("Fichier non trouve")
+        
+        elif choix == "3":
+            print("Retour au menu principal.")
+            break
+        
+        else:
+            print("Choix invalide. Veuillez choisir 1, 2 ou 3.")
+
+if __name__ == "__main__":
+    print("="*60)
+    print("SYSTEME DE CLASSIFICATION PMC - 3 INSTRUMENTS")
+    print("="*60)
+    print("Instruments: Guitare, Piano, Violon")
+    print("Approche: PMC One-vs-All")
+    print("="*60)
+
     dll_path = "./target/release/neural_networks.dll"
     if not Path(dll_path).exists():
-        print(f"DLL non trouvée: {dll_path}")
-    else:
-        print("\n" + "="*60)
-        print("TEST 1: Matrices de confusion")
-        print("="*60)
-        result = test_pmc_matrices_confusion()
+        print(f"Erreur: {dll_path} introuvable")
+        print("Veuillez compiler la DLL Rust avec: cargo build --release")
+        exit(1)
+    
+    print("\n" + "="*60)
+    print("TEST 1: Matrices de confusion (3 classes)")
+    print("="*60)
+    
+    result = test_pmc_3classes()
+    
+    if result is not None:
+        classifier, X_train_norm, X_test_norm, y_train, y_test = result
         
-        if result and result[0] is not None:
-            print("\n" + "="*60)
-            print("TEST 2: Courbe de Loss")
-            print("="*60)
-            test_pmc_courbe_loss()
+        X_train, _ = charger_dataset(n_images_per_class=6)
+        X_mean = X_train.mean(axis=0)
+        X_std = X_train.std(axis=0) + 1e-6
         
         print("\n" + "="*60)
-        print("Tests PMC terminés")
+        print("TEST 2: Courbe de Loss")
         print("="*60)
+        
+        test_pmc_courbe_loss_3classes()
+        
+        print("\n" + "="*60)
+        print("MENU INTERACTIF")
+        print("="*60)
+        
+        test_prediction_interactive_pmc(classifier, X_mean, X_std)
+        
+        print("\n" + "="*60)
+        print("FIN DU PROGRAMME")
+        print("="*60)
+        print("Votre systeme de classification PMC 3 classes est operationnel !")
