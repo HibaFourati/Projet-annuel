@@ -342,10 +342,7 @@ class MultiClassPMC:
         return np.array(final_preds)
 
 def test_pmc_3classes():
-    print("\n" + "="*60)
-    print("TEST PMC - 3 CLASSES")
-    print("="*60)
-    
+
     X, y = charger_dataset(n_images_per_class=6)
     if X is None:
         return
@@ -382,9 +379,7 @@ def test_pmc_3classes():
         print(f"  Rappel: {recall[i]:.2%}")
         print(f"  F1-score: {f1[i]:.2%}")
     
-    print("\n" + "="*60)
-    print("ANALYSE DES ERREURS")
-    print("="*60)
+
     
     error_indices = np.where(pred_test != y_test)[0]
     if len(error_indices) > 0:
@@ -420,7 +415,6 @@ def test_pmc_courbe_loss_3classes():
     test_losses = []
     epochs = 50
     
-    print("\nEntrainement en cours...")
     
     for class_name, model in classifier.models.items():
         label = classifier.class_labels[class_name]
@@ -466,9 +460,7 @@ def test_pmc_courbe_loss_3classes():
     plt.show()
 
 def test_prediction_interactive_pmc(classifier, X_mean, X_std):
-    print("\n" + "="*60)
-    print("TEST INTERACTIF PMC - PREDICTION D'UNE NOUVELLE IMAGE")
-    print("="*60)
+
     
     while True:
         print("\nOptions:")
@@ -555,22 +547,20 @@ def test_prediction_interactive_pmc(classifier, X_mean, X_std):
             print("Choix invalide. Veuillez choisir 1, 2 ou 3.")
 
 if __name__ == "__main__":
-    print("="*60)
+
     print("SYSTEME DE CLASSIFICATION PMC - 3 INSTRUMENTS")
-    print("="*60)
+ 
     print("Instruments: Guitare, Piano, Violon")
     print("Approche: PMC One-vs-All")
-    print("="*60)
+
 
     dll_path = "./target/release/neural_networks.dll"
     if not Path(dll_path).exists():
         print(f"Erreur: {dll_path} introuvable")
-        print("Veuillez compiler la DLL Rust avec: cargo build --release")
         exit(1)
     
-    print("\n" + "="*60)
+
     print("TEST 1: Matrices de confusion (3 classes)")
-    print("="*60)
     
     result = test_pmc_3classes()
     
@@ -581,19 +571,10 @@ if __name__ == "__main__":
         X_mean = X_train.mean(axis=0)
         X_std = X_train.std(axis=0) + 1e-6
         
-        print("\n" + "="*60)
+
         print("TEST 2: Courbe de Loss")
-        print("="*60)
+
         
         test_pmc_courbe_loss_3classes()
         
-        print("\n" + "="*60)
-        print("MENU INTERACTIF")
-        print("="*60)
-        
         test_prediction_interactive_pmc(classifier, X_mean, X_std)
-        
-        print("\n" + "="*60)
-        print("FIN DU PROGRAMME")
-        print("="*60)
-        print("Votre systeme de classification PMC 3 classes est operationnel !")

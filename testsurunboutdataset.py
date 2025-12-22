@@ -317,11 +317,7 @@ def test_complet_3classes():
             print(f"  Échantillon {idx}: Vrai={true_name}, Prédit={pred_name}")
     else:
         print("Aucune erreur !")
-    
-    print("\n" + "="*60)
-    print("SUGGESTIONS D'AMÉLIORATION")
-    print("="*60)
-    
+
     if accuracy < 80:
         print("\n1. Augmenter les données d'entraînement")
         print("   - Plus d'images par classe")
@@ -428,12 +424,12 @@ def test_prediction_interactive(classifier, X_mean, X_std):
             print("Choix invalide. Veuillez choisir 1, 2 ou 3.")
 
 if __name__ == "__main__":
-    print("="*60)
+
     print("SYSTEME DE CLASSIFICATION - 3 INSTRUMENTS")
-    print("="*60)
+
     print("Instruments: Guitare, Piano, Violon")
     print("Approche: Modele Lineaire One-vs-All")
-    print("="*60)
+
 
     dll_path = "./target/release/neural_networks.dll"
     if not Path(dll_path).exists():
@@ -448,9 +444,5 @@ if __name__ == "__main__":
         X_train, _ = charger_dataset(n_images_per_class=6)
         X_mean = X_train.mean(axis=0)
         X_std = X_train.std(axis=0) + 1e-6
-        
-        print("\n" + "="*60)
-        print("MENU INTERACTIF")
-        print("="*60)
         
         test_prediction_interactive(classifier, X_mean, X_std)
