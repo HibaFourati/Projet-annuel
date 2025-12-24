@@ -5,8 +5,8 @@ from pathlib import Path
 import random
 
 class RBF:
-    def __init__(self, n_inputs: int, n_centers: int = 50, learning_rate: float = 0.01, sigma: float = 1.0):
-        self.lib = ctypes.CDLL("./target/release/neural_networks.dll")
+    def __init__(self, n_inputs: int, n_centers: int = 80, learning_rate: float = 0.008, sigma: float = 0.0):
+        self.lib = ctypes.CDLL("./target/debug/neural_networks.dll")
         
         class RBFConfig(ctypes.Structure):
             _fields_ = [
@@ -16,8 +16,6 @@ class RBF:
                 ("learning_rate", ctypes.c_double),
                 ("sigma", ctypes.c_double)
             ]
-        
-        self.RBFConfig = RBFConfig
         
         config = RBFConfig(
             n_inputs=n_inputs,
@@ -41,22 +39,11 @@ class RBF:
             ctypes.POINTER(ctypes.c_double), ctypes.c_size_t, ctypes.c_size_t
         ]
         
-        # Nouvelle fonction debug
-        self.lib.rbf_debug_predict.argtypes = [
-            ctypes.c_void_p, ctypes.POINTER(ctypes.c_double), ctypes.c_size_t, ctypes.c_size_t
-        ]
-        self.lib.rbf_debug_predict.restype = ctypes.c_double
-        
         self.model_ptr = self.lib.rbf_new(ctypes.byref(config))
     
-    def __del__(self):
-        if hasattr(self, 'model_ptr'):
-            self.lib.rbf_delete(self.model_ptr)
-    
-    def fit(self, X: np.ndarray, y: np.ndarray, max_iterations: int = 2000) -> float:
+    def fit(self, X: np.ndarray, y: np.ndarray, max_iterations: int = 1500) -> float:
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y, dtype=np.float64)
-        
         if X.ndim == 1:
             X = X.reshape(-1, 1)
         
@@ -68,7 +55,6 @@ class RBF:
     
     def predict(self, X: np.ndarray) -> np.ndarray:
         X = np.asarray(X, dtype=np.float64)
-        
         if X.ndim == 1:
             X = X.reshape(1, -1)
         
@@ -80,73 +66,9 @@ class RBF:
         
         self.lib.rbf_predict_batch(self.model_ptr, X_ptr, pred_ptr, n_samples, n_features)
         return predictions
-    
-    def debug_predict(self, X: np.ndarray) -> float:
-        """Fonction debug pour voir les prédictions brutes"""
-        X = np.asarray(X, dtype=np.float64)
-        
-        if X.ndim == 1:
-            X = X.reshape(1, -1)
-        
-        n_samples, n_features = X.shape
-        X_ptr = X.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        
-        return self.lib.rbf_debug_predict(self.model_ptr, X_ptr, 1, n_features)
-
-# Test avec vos données
-def test_rbf_corrige():
-    print("="*60)
-    print("TEST RBF CORRIGÉ")
-    print("="*60)
-    
-    # Charger quelques données
-    X, y = [], []
-    for instrument, label in [('guitare', 1), ('piano', -1), ('violon', 0)]:
-        path = Path(f"dataset/{instrument}")
-        if path.exists():
-            images = list(path.glob("*.[pj][np]g"))[:5]
-            for img in images:
-                features = extraire_features(img)
-                if features is not None:
-                    X.append(features)
-                    y.append(label)
-    
-    X = np.array(X)
-    y = np.array(y)
-    
-    print(f"Données: {len(X)} images, {X.shape[1]} features")
-    
-    # Normalisation
-    X_mean = np.mean(X, axis=0)
-    X_std = np.std(X, axis=0) + 1e-8
-    X_norm = (X - X_mean) / X_std
-    
-    # Tester différentes configurations
-    for sigma in [0.5, 1.0, 2.0]:
-        for lr in [0.001, 0.005, 0.01]:
-            print(f"\nSigma={sigma}, LR={lr}:")
-            
-            # Modèle pour guitare
-            rbf = RBF(n_inputs=X.shape[1], n_centers=20, learning_rate=lr, sigma=sigma)
-            y_guitare = np.where(y == 1, 1.0, -1.0)
-            
-            loss = rbf.fit(X_norm, y_guitare, max_iterations=500)
-            print(f"  Loss: {loss:.4f}")
-            
-            # Debug prédiction
-            debug_val = rbf.debug_predict(X_norm[0:1])
-            print(f"  Debug prediction: {debug_val:.4f}")
-            
-            # Prédictions
-            preds = rbf.predict(X_norm)
-            print(f"  Prédictions range: [{preds.min():.3f}, {preds.max():.3f}]")
-            
-            # Convertir en classes
-            pred_classes = np.where(preds > 0, 1, -1)
-            accuracy = np.mean(pred_classes == y_guitare) * 100
-            print(f"  Accuracy: {accuracy:.1f}%")
 
 def extraire_features(img_path):
+
     try:
         img = cv2.imread(str(img_path))
         if img is None:
@@ -154,18 +76,149 @@ def extraire_features(img_path):
         
         img = cv2.resize(img, (80, 80))
         features = []
-        
+
         for canal in range(3):
             hist = cv2.calcHist([img], [canal], None, [12], [0, 256])
             hist = hist.flatten() / (hist.sum() + 1e-6)
             features.extend(hist)
-        
+
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        features.extend([gray.mean()/255.0, gray.std()/255.0])
+        features.extend([
+            gray.mean() / 255.0,
+            gray.std() / 255.0,
+            np.median(gray) / 255.0,
+        ])
         
         return np.array(features, dtype=np.float64)
     except:
         return None
 
+def entrainer_rapide():
+
+    print("="*50)
+    print("ENTRAÎNEMENT & TEST 10 IMAGES")
+    print("="*50)
+    
+
+    X, y = [], []
+    for instrument, label in [('guitare', 1), ('piano', -1), ('violon', 0)]:
+        path = Path(f"dataset/{instrument}")
+        if path.exists():
+            images = list(path.glob("*.jpg")) + list(path.glob("*.png"))
+            for img in images:
+                features = extraire_features(img)
+                if features is not None:
+                    X.append(features)
+                    y.append(label)
+    
+    if not X:
+        print(" Aucune image chargée")
+        return
+    
+    X = np.array(X)
+    y = np.array(y)
+    
+
+    mean = np.mean(X, axis=0)
+    std = np.std(X, axis=0)
+    std[std < 1e-8] = 1.0
+    X_norm = (X - mean) / std
+    
+    print(f" Données: {len(X)} images, {X.shape[1]} features")
+    
+
+    models = {}
+    
+
+    y_guitare = np.where(y == 1, 1.0, -1.0)
+    models['guitare'] = RBF(n_inputs=X.shape[1], n_centers=120, learning_rate=0.008, sigma=0.0)
+    loss_g = models['guitare'].fit(X_norm, y_guitare, max_iterations=2000)
+    
+    y_piano = np.where(y == -1, 1.0, -1.0)
+    models['piano'] = RBF(n_inputs=X.shape[1], n_centers=150, learning_rate=0.008, sigma=0.0)
+    loss_p = models['piano'].fit(X_norm, y_piano, max_iterations=2000)
+    
+
+    y_violon = np.where(y == 0, 1.0, -1.0)
+    models['violon'] = RBF(n_inputs=X.shape[1], n_centers=100, learning_rate=0.008, sigma=0.0)
+    loss_v = models['violon'].fit(X_norm, y_violon, max_iterations=2000)
+    
+    print(f" Entraînement terminé")
+    print(f"   Loss: G={loss_g:.4f}, P={loss_p:.4f}, V={loss_v:.4f}")
+
+    scores = {name: model.predict(X_norm) for name, model in models.items()}
+    
+    y_pred = []
+    for i in range(len(X)):
+        best = max(scores.items(), key=lambda x: x[1][i])[0]
+        y_pred.append(1 if best == 'guitare' else -1 if best == 'piano' else 0)
+    
+    accuracy = np.mean(np.array(y_pred) == y) * 100
+    print(f"\n Accuracy globale: {accuracy:.1f}%")
+
+    print(" TEST SUR 10 IMAGES ALÉATOIRES")
+    
+    correct = 0
+    total = 0
+    
+    for test_num in range(10):
+
+        instrument = random.choice(['guitare', 'piano', 'violon'])
+        path = Path(f"dataset/{instrument}")
+        
+        if not path.exists():
+            continue
+            
+        images = list(path.glob("*.jpg")) + list(path.glob("*.png"))
+        if not images:
+            continue
+            
+
+        img_path = random.choice(images)
+        
+        features = extraire_features(img_path)
+        if features is None:
+            continue
+            
+        features_norm = (features - mean) / std
+        
+        scores = {}
+        for nom, modele in models.items():
+            scores[nom] = modele.predict(features_norm.reshape(1, -1))[0]
+        
+
+        meilleur_classe = max(scores.items(), key=lambda x: x[1])[0]
+        
+        if meilleur_classe == 'guitare':
+            pred_nom = 'Guitare'
+        elif meilleur_classe == 'piano':
+            pred_nom = 'Piano'
+        else:
+            pred_nom = 'Violon'
+        
+        is_correct = pred_nom.lower() == instrument
+        
+
+        print(f"\nTest {test_num+1}:")
+        print(f"  Image: {img_path.name}")
+        print(f"  Réel: {instrument.capitalize()}")
+        print(f"  Prédit: {pred_nom}")
+        print(f"  Scores: G={scores['guitare']:.3f}, P={scores['piano']:.3f}, V={scores['violon']:.3f}")
+        
+        if is_correct:
+            print(f"   CORRECT")
+            correct += 1
+        else:
+            print(f"   ERREUR")
+        
+        total += 1
+    
+
+    print(f" RÉSULTATS: {correct}/{total} corrects ({correct/total*100:.1f}%)")
+    print(f" Accuracy globale: {accuracy:.1f}%")
+    
+    return models, mean, std
+
+
 if __name__ == "__main__":
-    test_rbf_corrige()
+    entrainer_rapide()

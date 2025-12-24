@@ -92,7 +92,6 @@ class PMC:
 
 class PMCClassifier:
     def __init__(self, n_inputs: int, n_hidden: int = 8, learning_rate: float = 0.005, dropout: float = 0.2):
-        """Classifieur avec régularisation intégrée"""
         self.models = {
             'guitare': PMC(n_inputs, n_hidden, learning_rate, dropout),
             'piano': PMC(n_inputs, n_hidden, learning_rate, dropout),
@@ -104,7 +103,6 @@ class PMCClassifier:
         self.dropout = dropout
     
     def fit(self, X_train, y_train, max_iterations=800, patience=50):
-        """Entraînement avec early stopping simple"""
         print(f"Entraînement avec {self.n_hidden} neurones cachés, dropout={self.dropout}")
         
         for name, model in self.models.items():
@@ -226,7 +224,6 @@ def load_data(augment=False):
     return X, y
 
 def normalize_data(X_train, X_test):
-    """Normalisation robuste"""
     median = np.median(X_train, axis=0)
     q75 = np.percentile(X_train, 75, axis=0)
     q25 = np.percentile(X_train, 25, axis=0)
@@ -238,7 +235,6 @@ def normalize_data(X_train, X_test):
     return X_train_norm, X_test_norm, (median, iqr)
 
 def train_model(config='simple'):
-    """Entraîne avec différentes configurations"""
     
     configs = {
         'simple': {'hidden': 5, 'lr': 0.003, 'dropout': 0.3, 'iter': 1000},
@@ -407,9 +403,9 @@ def main():
                 elif accuracy >= 55:
                     print(" Le modèle est utilisable.")
                 elif accuracy >= 45:
-                    print(" Modéré. Pourrait être amélioré.")
+                    print(" Modéré.")
                 else:
-                    print("Faible. Essayez une autre configuration.")
+                    print("Faible.")
 
 if __name__ == "__main__":
     main()

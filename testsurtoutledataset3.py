@@ -4,9 +4,6 @@ import cv2
 from pathlib import Path
 import random
 
-# ============================================================================
-# STRUCTURE SVM
-# ============================================================================
 class SVMConfig(ctypes.Structure):
     _fields_ = [
         ("n_inputs", ctypes.c_uint),
@@ -15,9 +12,7 @@ class SVMConfig(ctypes.Structure):
         ("max_iterations", ctypes.c_uint)
     ]
 
-# ============================================================================
-# CLASSE SVM
-# ============================================================================
+
 class SVM:
     def __init__(self, n_inputs: int, learning_rate: float = 0.001, c: float = 1.0):
         self.lib = ctypes.CDLL("./target/release/neural_networks.dll")
@@ -106,9 +101,6 @@ class SVM:
         self.lib.svm_predict_probability(self.model_ptr, X_ptr, scores_ptr, n_samples, n_features)
         return scores
 
-# ============================================================================
-# CLASSIFIEUR SVM
-# ============================================================================
 class SVMClassifier:
     def __init__(self, n_inputs: int, c: float = 1.0, learning_rate: float = 0.001):
         self.models = {
@@ -159,9 +151,8 @@ class SVMClassifier:
         
         return probas
 
-# ============================================================================
-# FONCTIONS UTILITAIRES
-# ============================================================================
+
+
 def extract_features(img_path):
     try:
         img = cv2.imread(str(img_path))
@@ -171,13 +162,12 @@ def extract_features(img_path):
         img = cv2.resize(img, (80, 80))
         features = []
         
-        # Couleur
+
         for canal in range(3):
             hist = cv2.calcHist([img], [canal], None, [16], [0, 256])
             hist = hist.flatten() / (hist.sum() + 1e-6)
             features.extend(hist)
-        
-        # Gris
+
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         features.extend([
             gray.mean() / 255.0,
@@ -185,7 +175,7 @@ def extract_features(img_path):
             np.median(gray) / 255.0,
         ])
         
-        # Gradients
+
         sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
         sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
         magnitude = np.sqrt(sobelx**2 + sobely**2)
@@ -194,13 +184,13 @@ def extract_features(img_path):
             np.std(magnitude) / 500.0,
         ])
         
-        # Moments de Hu
+
         moments = cv2.moments(gray)
         hu_moments = cv2.HuMoments(moments).flatten()
         hu_moments = -np.sign(hu_moments) * np.log10(np.abs(hu_moments) + 1e-10)
         features.extend(hu_moments[:4])
         
-        # Géométrie
+
         h, w = gray.shape
         features.extend([
             w / h if h > 0 else 1.0,
@@ -231,20 +221,13 @@ def normalize(X_train, X_test):
     std = np.std(X_train, axis=0) + 1e-8
     return (X_train - mean) / std, (X_test - mean) / std, (mean, std)
 
-# ============================================================================
-# ENTRAÎNEMENT SVM
-# ============================================================================
+
 def train_svm():
-    print("="*40)
-    print("ENTRAÎNEMENT SVM")
-    print("="*40)
-    
-    # Charger données
+
     X, y = load_data()
     if X is None:
         return None
-    
-    # Split
+
     n = len(X)
     idx = list(range(n))
     random.shuffle(idx)
@@ -255,20 +238,18 @@ def train_svm():
     
     print(f"\nTrain: {len(X_train)}, Test: {len(X_test)}")
     
-    # Normaliser
+
     X_train_norm, X_test_norm, norm = normalize(X_train, X_test)
-    
-    # Entraîner
+
     classifier = SVMClassifier(X_train_norm.shape[1])
     classifier.fit(X_train_norm, y_train)
-    
-    # Tester
+
     y_pred = classifier.predict(X_test_norm)
     accuracy = np.mean(y_pred == y_test) * 100
     
     print(f"\nAccuracy: {accuracy:.1f}%")
     
-    # Matrice de confusion
+
     cm = np.zeros((3, 3), dtype=int)
     for true, pred in zip(y_test, y_pred):
         cm[int(true)+1][int(pred)+1] += 1
@@ -280,9 +261,7 @@ def train_svm():
     
     return classifier, accuracy, norm
 
-# ============================================================================
-# TEST SVM
-# ============================================================================
+
 def test_svm(classifier, norm=None):
     while True:
         print("\n1. Tester une image")
@@ -333,23 +312,19 @@ def test_svm(classifier, norm=None):
                             
                             if pred_name.lower() == instrument:
                                 correct += 1
-                                print(f"✓ {img.name}: {instrument} -> {pred_name}")
+                                print(f" {img.name}: {instrument} -> {pred_name}")
                             else:
-                                print(f"✗ {img.name}: {instrument} -> {pred_name}")
+                                print(f" {img.name}: {instrument} -> {pred_name}")
             
             print(f"\nRésultat: {correct}/5 corrects")
         
         elif choix == "3":
             break
-
-# ============================================================================
-# MAIN
-# ============================================================================
 def main():
     print("SVM Classifier")
     
     if not Path("./target/release/neural_networks.dll").exists():
-        print("❌ DLL manquante!")
+        print(" DLL manquante!")
         print("Compilez avec: cargo build --release --features svm")
         return
     
@@ -374,17 +349,13 @@ def main():
             if model:
                 test_svm(model, norm)
             else:
-                print("Entraînez d'abord!")
+                print("Entraînez ")
         
         elif choix == "3":
             if model:
                 print(f"Accuracy: {accuracy:.1f}%")
             else:
                 print("Aucun modèle")
-        
-        elif choix == "4":
-            print("Au revoir!")
-            break
 
 if __name__ == "__main__":
     main()

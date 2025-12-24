@@ -230,9 +230,9 @@ def tester(classifier, normalizer=None):
                             
                             if pred_name.lower() == instrument:
                                 correct += 1
-                                print(f"  ✅ {img.name}: {instrument} → {pred_name}")
+                                print(f"   {img.name}: {instrument} → {pred_name}")
                             else:
-                                print(f"  ❌ {img.name}: {instrument} → {pred_name}")
+                                print(f"   {img.name}: {instrument} → {pred_name}")
             
             print(f"\nRésumé: {correct}/5 corrects")
         
