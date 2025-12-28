@@ -7,7 +7,7 @@ import random
 
 class PMC:
     def __init__(self, n_inputs: int, n_hidden: int, learning_rate: float = 0.005, dropout: float = 0.0):
-        self.lib = ctypes.CDLL("./target/release/neural_networks.dll")
+        self.lib = ctypes.CDLL("./target/release/libneural_networks.so")
         
         class PMCConfig(ctypes.Structure):
             _fields_ = [
@@ -238,7 +238,7 @@ def train_model(config='simple'):
     
     configs = {
         'simple': {'hidden': 5, 'lr': 0.003, 'dropout': 0.3, 'iter': 1000},
-        'medium': {'hidden': 8, 'lr': 0.005, 'dropout': 0.2, 'iter': 1200},
+        'medium': {'hidden': 8, 'lr': 0.002, 'dropout': 0.15, 'iter': 1800},
         'complex': {'hidden': 12, 'lr': 0.008, 'dropout': 0.1, 'iter': 1500}
     }
     
@@ -317,9 +317,10 @@ def train_model(config='simple'):
 def main():
     print(" PMC")
 
-    if not Path("./target/release/neural_networks.dll").exists():
+    if not Path("./target/release/libneural_networks.so").exists():
+         print(" Bibliothèque native introuvable")
+         return
 
-        return
     
     model = None
     accuracy = 0

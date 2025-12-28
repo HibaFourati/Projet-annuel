@@ -1,9 +1,11 @@
 #[repr(C)]
+#[repr(C)]
 pub struct LinearModel {
-    weights: Vec<f64>, 
-    bias: f64, 
-    learning_rate: f64, 
+    pub weights: Vec<f64>,
+    pub bias: f64, 
+    pub learning_rate: f64, 
 }
+
 
 #[no_mangle] 
 pub extern "C" fn linear_model_new(input_dim: usize, learning_rate: f64) -> *mut LinearModel { 

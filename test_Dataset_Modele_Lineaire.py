@@ -7,7 +7,7 @@ import random
 
 class LinearModel:
     def __init__(self, input_dim: int, learning_rate: float = 0.01):
-        self.lib = ctypes.CDLL("./target/release/neural_networks.dll")
+        self.lib = ctypes.CDLL("./target/release/libneural_networks.so")
         self.lib.linear_model_new.argtypes = [ctypes.c_size_t, ctypes.c_double]
         self.lib.linear_model_new.restype = ctypes.c_void_p
         self.lib.linear_model_delete.argtypes = [ctypes.c_void_p]
@@ -27,7 +27,7 @@ class LinearModel:
         if hasattr(self, 'model_ptr'):
             self.lib.linear_model_delete(self.model_ptr)
     
-    def fit(self, X: np.ndarray, y: np.ndarray, max_iterations: int = 1000) -> float:
+    def fit(self, X: np.ndarray, y: np.ndarray, max_iterations: int = 5000) -> float:
         X = np.asarray(X, dtype=np.float64)
         y = np.asarray(y, dtype=np.float64)
         if X.ndim == 1:
@@ -85,101 +85,116 @@ def extraire_features(img_path):
         return np.array(features, dtype=np.float64)
     except:
         return None
+    
+def transform_features(X):
+    return np.column_stack([
+        X,
+        X[:, :10] ** 2,
+        X[:, :10] * X[:, 10:20]
+    ])
+
 
 def charger_dataset():
     X, y = [], []
-    classes = [('guitare', 1), ('piano', -1), ('violon', 0)]
-    
-    for instrument, label in classes:
-        path = Path(f"dataset/{instrument}")
+    classes = {'guitare': 0, 'piano': 1, 'violon': 2}
+
+    for name, label in classes.items():
+        path = Path(f"dataset/{name}")
         if path.exists():
             for img in path.glob("*.[pj][np]g"):
-                features = extraire_features(img)
-                if features is not None:
-                    X.append(features)
+                f = extraire_features(img)
+                if f is not None:
+                    X.append(f)
                     y.append(label)
-    
-    return np.array(X), np.array(y) if X else (None, None)
+
+    return np.array(X), np.array(y)
+
+X, y = charger_dataset()
+unique, counts = np.unique(y, return_counts=True)
+print("Nombre d’images par classe :")
+for label, count in zip(unique, counts):
+    if label == 0:
+        name = "Guitare"
+    elif label == 1:
+        name = "Piano"
+    elif label == 2:
+        name = "Violon"
+    print(f"{name}: {count} images")
+
+
 
 def normaliser(X_train, X_test):
     median = np.median(X_train, axis=0)
-    q75 = np.percentile(X_train, 75, axis=0)
-    q25 = np.percentile(X_train, 25, axis=0)
-    iqr = q75 - q25 + 1e-8
-    return (X_train-median)/iqr, (X_test-median)/iqr, (median, iqr)
+    iqr = np.percentile(X_train, 75, axis=0) - np.percentile(X_train, 25, axis=0)
+    iqr += 1e-8
+    return (X_train - median)/iqr, (X_test - median)/iqr, (median, iqr)
+
+
+
+
 
 class Classifier:
-    def __init__(self, input_dim, learning_rate=0.001):
+    def __init__(self, input_dim, lr=0.001):
         self.models = {
-            'guitare': LinearModel(input_dim, learning_rate),
-            'piano': LinearModel(input_dim, learning_rate),
-            'violon': LinearModel(input_dim, learning_rate)
+            'guitare': LinearModel(input_dim, lr),
+            'piano': LinearModel(input_dim, lr),
+            'violon': LinearModel(input_dim, lr)
         }
-        self.class_labels = {'guitare': 1, 'piano': -1, 'violon': 0}
-        self.label_names = {1: 'Guitare', -1: 'Piano', 0: 'Violon'}
-        
-    def fit(self, X_train, y_train, max_iterations=800):
-        for class_name, model in self.models.items():
-            label = self.class_labels[class_name]
-            y_binary = np.where(y_train == label, 1.0, -1.0)
-            model.fit(X_train, y_binary, max_iterations)
-    
+        self.labels = {'guitare': 0, 'piano': 1, 'violon': 2}
+        self.names = {0: 'Guitare', 1: 'Piano', 2: 'Violon'}
+
+    def fit(self, X, y):
+        X = transform_features(X)
+        for name, model in self.models.items():
+            y_bin = np.where(y == self.labels[name], 1.0, -1.0)
+            model.fit(X, y_bin)
+
     def predict(self, X):
-        scores = {name: model.predict_score(X) for name, model in self.models.items()}
+        X = transform_features(X)
+        scores = {k: m.predict_score(X) for k, m in self.models.items()}
         preds = []
         for i in range(len(X)):
-            best_score = -np.inf
-            best_class = 'guitare'
-            for class_name, score_array in scores.items():
-                if score_array[i] > best_score:
-                    best_score = score_array[i]
-                    best_class = class_name
-            preds.append(self.class_labels[best_class])
+            best = max(scores, key=lambda k: scores[k][i])
+            preds.append(self.labels[best])
         return np.array(preds)
-    
+
     def predict_proba(self, X):
-        scores = {name: model.predict_score(X) for name, model in self.models.items()}
-        probas = np.zeros((len(X), 3))
-        for i in range(len(X)):
-            score_values = np.array([scores['guitare'][i], scores['piano'][i], scores['violon'][i]])
-            exp_scores = np.exp(score_values - np.max(score_values))
-            probas[i] = exp_scores / exp_scores.sum()
-        return probas
+        X = transform_features(X)
+        scores = np.column_stack([
+            self.models['guitare'].predict_score(X),
+            self.models['piano'].predict_score(X),
+            self.models['violon'].predict_score(X)
+        ])
+        exp = np.exp(scores - scores.max(axis=1, keepdims=True))
+        return exp / exp.sum(axis=1, keepdims=True)
+
 
 
 def entrainement():
     X, y = charger_dataset()
-    if X is None:
-        return None
-    
-    n = len(X)
-    idx = list(range(n))
-    random.shuffle(idx)
-    split = int(0.8 * n)
-    
+    idx = np.random.permutation(len(X))
+    split = int(0.8 * len(X))
+
     X_train, X_test = X[idx[:split]], X[idx[split:]]
     y_train, y_test = y[idx[:split]], y[idx[split:]]
-    
+
     X_train, X_test, normalizer = normaliser(X_train, X_test)
-    
-    classifier = Classifier(input_dim=X_train.shape[1])
+
+    X_train_t = transform_features(X_train)
+    classifier = Classifier(input_dim=X_train_t.shape[1])
+
     classifier.fit(X_train, y_train)
-    
+
     y_pred = classifier.predict(X_test)
-    accuracy = np.mean(y_pred == y_test) * 100
-    
-    print(f"Train: {len(X_train)}, Test: {len(X_test)}")
-    print(f"Accuracy: {accuracy:.1f}%")
-    
-    cm = np.zeros((3, 3), dtype=int)
-    for true, pred in zip(y_test, y_pred):
-        cm[int(true)+1][int(pred)+1] += 1
-    print("Matrice de confusion:")
-    print("      P  V  G")
-    for i, label in enumerate(['P', 'V', 'G']):
-        print(f"{label}: {cm[i]}")
-    
-    return classifier, accuracy, normalizer
+    acc = np.mean(y_pred == y_test) * 100
+
+    print(f"Accuracy: {acc:.1f}%")
+    return classifier, acc, normalizer
+    print("Scores moyens:")
+    for k, m in classifier.models.items():
+       print(k, np.mean(np.abs(m.predict_score(transform_features(X_train)))))
+
+
 
 def tester(classifier, normalizer=None):
     while True:
@@ -194,18 +209,17 @@ def tester(classifier, normalizer=None):
                 features = extraire_features(img_path)
                 if features is not None:
                     if normalizer:
-                        median, iqr = normalizer
-                        features = (features - median) / iqr
+                         X_min, X_max = normalizer
+                         features = (features - X_min) / (X_max - X_min + 1e-8)
+
                     
                     probas = classifier.predict_proba(features.reshape(1, -1))[0]
                     pred_idx = np.argmax(probas)
-                    pred_label = list(classifier.label_names.values())[pred_idx]
-                    
+                    pred_label = classifier.names[pred_idx]
                     print(f"\nRésultat: {pred_label}")
-                    print(f"Confiance: {probas[pred_idx]:.1%}")
-                    print(f"Guitare: {probas[2]:.1%}")
-                    print(f"Piano:   {probas[0]:.1%}")
-                    print(f"Violon:  {probas[1]:.1%}")
+                    print(f"Guitare: {probas[0]:.1%}")
+                    print(f"Piano:   {probas[1]:.1%}")
+                    print(f"Violon:  {probas[2]:.1%}")
                 else:
                     print("Erreur extraction")
             else:
@@ -243,9 +257,10 @@ def tester(classifier, normalizer=None):
 if __name__ == "__main__":
 
     
-    if not Path("./target/release/neural_networks.dll").exists():
-        print(" DLL manquante!")
-        exit(1)
+    if not Path("./target/release/libneural_networks.so").exists():
+         print("Bibliothèque manquante!")
+         exit(1)
+
     
     classifier = None
     accuracy = 0
