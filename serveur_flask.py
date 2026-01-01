@@ -15,10 +15,15 @@ from test_Dataset_Modele_Lineaire import (
 
 app = Flask(__name__)
 
+@app.before_request
+def log_request_info():
+    print(f"Requête reçue: {request.method} {request.path}")
+
+
+
 
 classes = ['guitare', 'piano', 'violon']
 names = ['Guitare', 'Piano', 'Violon']
-
 
 
 # SVM 
@@ -33,7 +38,7 @@ for i, cls in enumerate(classes):
 X_svm = np.array(X_svm)
 y_svm = np.array(y_svm)
 
-# Normalisation 
+# Normalisation robuste
 p1 = np.percentile(X_svm, 1, axis=0)
 p99 = np.percentile(X_svm, 99, axis=0)
 X_svm_norm = np.clip((X_svm - p1) / (p99 - p1 + 1e-8), 0, 1)
@@ -47,7 +52,7 @@ for c in range(3):
 
 print("SVM prêt")
 
-# PMC
+# PMC 
 X_pmc, y_pmc = [], []
 for cls, label in [('guitare', 1), ('piano', -1), ('violon', 0)]:
     for img in Path(f"dataset/{cls}").glob("*.[pj][np]g"):
@@ -91,14 +96,14 @@ def predict():
     if not file:
         return render_template("index.html", result="Aucune image envoyée")
 
-    # Sauvegarde temporaire
+    # Sauvegarde temporaire 
     temp = Path("temp")
     temp.mkdir(exist_ok=True)
     img_path = temp / file.filename
     file.save(img_path)
 
     try:
-       
+        #SVM 
         if model_type == "svm":
             f = extract_robust_features(img_path)
             if f is None:
@@ -107,7 +112,7 @@ def predict():
             scores = [m.predict_score(f_norm.reshape(1, -1))[0] for m in svm_models]
             pred = names[int(np.argmax(scores))]
 
-       
+        # PMC 
         elif model_type == "pmc":
             f = extract_features(img_path)
             if f is None:
@@ -117,7 +122,7 @@ def predict():
             pred_code = pmc_model.predict(f_norm.reshape(1, -1))[0]
             pred = pmc_model.names[pred_code]
 
-        
+        # LINÉAIRE 
         elif model_type == "linear":
             f = extraire_features(img_path)
             if f is None:
