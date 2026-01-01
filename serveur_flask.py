@@ -74,7 +74,7 @@ X_lin_t = transform_features(X_lin_norm)
 linear_model = Classifier(input_dim=X_lin_t.shape[1])
 linear_model.fit(X_lin_norm, y_lin)
 
-print("✅ Modèle linéaire prêt")
+print("Modèle linéaire prêt")
 
 
 
