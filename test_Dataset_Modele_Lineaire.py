@@ -209,8 +209,9 @@ def tester(classifier, normalizer=None):
                 features = extraire_features(img_path)
                 if features is not None:
                     if normalizer:
-                         X_min, X_max = normalizer
-                         features = (features - X_min) / (X_max - X_min + 1e-8)
+                         median, iqr = normalizer
+                         features = (features - median) / iqr
+
 
                     
                     probas = classifier.predict_proba(features.reshape(1, -1))[0]
