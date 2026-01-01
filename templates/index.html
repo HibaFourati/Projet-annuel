@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Prédiction des instruments</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Prédiction d'instrument</h1>
+        <form method="POST" enctype="multipart/form-data" action="/">
+            <label for="image">Choisir une image :</label>
+            <input type="file" name="image" id="image" required><br><br>
+
+            <label for="model_type">Choisir un modèle :</label>
+            <select name="model_type" id="model_type">
+               <option value="svm">SVM</option>
+               <option value="pmc">PMC</option>
+               <option value="linear">Linear</option>
+            </select><br><br>
+
+            <button type="submit">Prédire</button>
+        </form>
+
+
+        {% if result %}
+            <h2>Résultat : {{ result }}</h2>
+        {% endif %}
+    </div>
+</body>
+</html>
