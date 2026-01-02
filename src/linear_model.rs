@@ -58,7 +58,7 @@ pub extern "C" fn linear_model_fit(
                 
                 
                 for j in 0..n_features {
-                    model.weights[j] -= model.learning_rate * error * features_slice[i * n_features + j];//nouveau_poids = ancien_poids - η × erreur × feature
+                    model.weights[j] -= model.learning_rate * error * features_slice[i * n_features + j];
                 }
                 model.bias -= model.learning_rate * error;
             }

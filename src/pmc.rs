@@ -49,8 +49,9 @@ pub extern "C" fn pmc_delete(pmc: *mut PMC) {
 }
 
 fn tanh(x: f64) -> f64 { x.tanh() }
-fn tanh_derivative(x: f64) -> f64 { 1.0 - x.tanh() * x.tanh() }
-
+fn tanh_derivative_from_output(y: f64) -> f64 {
+    1.0 - y * y
+}
 #[no_mangle]
 pub extern "C" fn pmc_fit(pmc: *mut PMC, x: *const f64, y: *const f64, n: usize, d: usize, max_iter: usize) -> f64 {
     unsafe {
@@ -81,14 +82,14 @@ pub extern "C" fn pmc_fit(pmc: *mut PMC, x: *const f64, y: *const f64, n: usize,
                 }
                 let pred = tanh(out);
                 
-                // Error
+                // Erreur
                 let e = y[i] - pred;
                 error += e * e;
                 
                 // Backward
-                let delta_out = e * tanh_derivative(pred);
+                let delta_out = e * (1.0 - pred * pred);
+
                 
-                // Update
                 for j in 0..(pmc.config.n_hidden as usize) {
                     pmc.weights2[j] += lr * delta_out * h[j];
                     let delta_h = delta_out * pmc.weights2[j] * tanh_derivative(h[j]);

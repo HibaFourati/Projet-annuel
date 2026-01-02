@@ -96,7 +96,8 @@ def transform_features(X):
 
 def charger_dataset():
     X, y = [], []
-    classes = {'guitare': 0, 'piano': 1, 'violon': 2}
+    classes = {'piano': 0, 'batterie': 1, 'harpe': 2}
+
 
     for name, label in classes.items():
         path = Path(f"dataset/{name}")
@@ -114,11 +115,11 @@ unique, counts = np.unique(y, return_counts=True)
 print("Nombre d’images par classe :")
 for label, count in zip(unique, counts):
     if label == 0:
-        name = "Guitare"
+        name = "piano"
     elif label == 1:
-        name = "Piano"
+        name = "batterie"
     elif label == 2:
-        name = "Violon"
+        name = "harpe"
     print(f"{name}: {count} images")
 
 
@@ -136,12 +137,12 @@ def normaliser(X_train, X_test):
 class Classifier:
     def __init__(self, input_dim, lr=0.001):
         self.models = {
-            'guitare': LinearModel(input_dim, lr),
             'piano': LinearModel(input_dim, lr),
-            'violon': LinearModel(input_dim, lr)
+            'batterie': LinearModel(input_dim, lr),
+            'harpe': LinearModel(input_dim, lr)
         }
-        self.labels = {'guitare': 0, 'piano': 1, 'violon': 2}
-        self.names = {0: 'Guitare', 1: 'Piano', 2: 'Violon'}
+        self.labels = {'piano': 0, 'batterie': 1, 'harpe': 2}
+        self.names = {0: 'Piano', 1: 'Batterie', 2: 'Harpe'}
 
     def fit(self, X, y):
         X = transform_features(X)
@@ -161,9 +162,9 @@ class Classifier:
     def predict_proba(self, X):
         X = transform_features(X)
         scores = np.column_stack([
-            self.models['guitare'].predict_score(X),
             self.models['piano'].predict_score(X),
-            self.models['violon'].predict_score(X)
+            self.models['batterie'].predict_score(X),
+            self.models['harpe'].predict_score(X)
         ])
         exp = np.exp(scores - scores.max(axis=1, keepdims=True))
         return exp / exp.sum(axis=1, keepdims=True)
@@ -218,9 +219,9 @@ def tester(classifier, normalizer=None):
                     pred_idx = np.argmax(probas)
                     pred_label = classifier.names[pred_idx]
                     print(f"\nRésultat: {pred_label}")
-                    print(f"Guitare: {probas[0]:.1%}")
-                    print(f"Piano:   {probas[1]:.1%}")
-                    print(f"Violon:  {probas[2]:.1%}")
+                    print(f"piano: {probas[0]:.1%}")
+                    print(f"batterie:   {probas[1]:.1%}")
+                    print(f"harpe:  {probas[2]:.1%}")
                 else:
                     print("Erreur extraction")
             else:
@@ -229,7 +230,7 @@ def tester(classifier, normalizer=None):
         elif choix == "2":
             correct = 0
             for _ in range(5):
-                instrument = random.choice(['guitare', 'piano', 'violon'])
+                instrument = random.choice(['piano', 'batterie', 'harpe'])
                 path = Path(f"dataset/{instrument}")
                 if path.exists():
                     images = list(path.glob("*.[pj][np]g"))
@@ -241,7 +242,8 @@ def tester(classifier, normalizer=None):
                             median, iqr = normalizer
                             features = (features - median) / iqr
                             pred = classifier.predict(features.reshape(1, -1))[0]
-                            pred_name = classifier.label_names[pred]
+                            pred_name = classifier.names[pred]
+
                             
                             if pred_name.lower() == instrument:
                                 correct += 1

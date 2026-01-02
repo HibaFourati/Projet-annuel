@@ -22,8 +22,8 @@ def log_request_info():
 
 
 
-classes = ['guitare', 'piano', 'violon']
-names = ['Guitare', 'Piano', 'Violon']
+classes = ['piano', 'batterie', 'harpe']
+names = ['Piano', 'Batterie', 'Harpe']
 
 
 # SVM 
@@ -38,7 +38,7 @@ for i, cls in enumerate(classes):
 X_svm = np.array(X_svm)
 y_svm = np.array(y_svm)
 
-# Normalisation robuste
+# Normalisation 
 p1 = np.percentile(X_svm, 1, axis=0)
 p99 = np.percentile(X_svm, 99, axis=0)
 X_svm_norm = np.clip((X_svm - p1) / (p99 - p1 + 1e-8), 0, 1)
@@ -54,7 +54,7 @@ print("SVM prêt")
 
 # PMC 
 X_pmc, y_pmc = [], []
-for cls, label in [('guitare', 1), ('piano', -1), ('violon', 0)]:
+for cls, label in [('piano', 1), ('batterie', -1), ('harpe', 0)]:
     for img in Path(f"dataset/{cls}").glob("*.[pj][np]g"):
         f = extract_features(img)
         if f is not None:

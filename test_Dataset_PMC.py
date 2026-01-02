@@ -93,12 +93,12 @@ class PMC:
 class PMCClassifier:
     def __init__(self, n_inputs: int, n_hidden: int = 8, learning_rate: float = 0.005, dropout: float = 0.2):
         self.models = {
-            'guitare': PMC(n_inputs, n_hidden, learning_rate, dropout),
             'piano': PMC(n_inputs, n_hidden, learning_rate, dropout),
-            'violon': PMC(n_inputs, n_hidden, learning_rate, dropout)
+            'batterie': PMC(n_inputs, n_hidden, learning_rate, dropout),
+            'harpe': PMC(n_inputs, n_hidden, learning_rate, dropout)
         }
-        self.labels = {'guitare': 1, 'piano': -1, 'violon': 0}
-        self.names = {1: 'Guitare', -1: 'Piano', 0: 'Violon'}
+        self.labels = {'piano': 1, 'batterie': -1, 'harpe': 0}
+        self.names = {1: 'piano', -1: 'batterie', 0: 'harpe'}
         self.n_hidden = n_hidden
         self.dropout = dropout
     
@@ -117,7 +117,7 @@ class PMCClassifier:
         
         for i in range(len(X)):
             best_score = -np.inf
-            best_class = 'guitare'
+            best_class = 'piano'
             for name, score_array in scores.items():
                 if score_array[i] > best_score:
                     best_score = score_array[i]
@@ -201,7 +201,7 @@ def augment_data(X, y, noise_level=0.05):
 def load_data(augment=False):
    
     X, y = [], []
-    for instrument, label in [('guitare', 1), ('piano', -1), ('violon', 0)]:
+    for instrument, label in [('piano', 1), ('batterie', -1), ('harpe', 0)]:
         path = Path(f"dataset/{instrument}")
         if path.exists():
             images = list(path.glob("*.[pj][np]g"))
@@ -293,7 +293,7 @@ def train_model(config='simple'):
     
     print("\nMatrice de confusion:")
     print("      P  V  G")
-    labels = ['Piano', 'Violon', 'Guitare']
+    labels = ['Piano', 'batterie', 'Harpe']
     for i, label in enumerate(labels):
         print(f"{label[0]}: {cm[i]}")
     
@@ -363,7 +363,7 @@ def main():
             
             print(f"\n Test sur {total} images aléatoires:")
             for _ in range(total):
-                instrument = random.choice(['guitare', 'piano', 'violon'])
+                instrument = random.choice(['piano', 'batterie', 'harpe'])
                 path = Path(f"dataset/{instrument}")
                 
                 if path.exists():

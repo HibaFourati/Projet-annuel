@@ -1,14 +1,14 @@
-/* === Fond principal === */
+
 body {
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
     height: 100vh;
 
-    /* Image nette */
+   
     background-image: url('/static/Instrument.jpg');
-    background-size: cover;      /* couvre tout l’écran */
-    background-position: center; /* centré */
+    background-size: cover;      
+    background-position: center; 
     background-repeat: no-repeat;
 
     display: flex;
@@ -16,25 +16,25 @@ body {
     align-items: center;
 }
 
-/* === Formulaire central === */
+
 .container {
     max-width: 500px;
     width: 90%;
     padding: 30px;
     border-radius: 15px;
     box-shadow: 0 6px 25px rgba(0,0,0,0.25);
-    background-color: rgba(255, 255, 255, 0.9); /* légèrement transparent pour voir le fond */
+    background-color: rgba(255, 255, 255, 0.9); 
     text-align: center;
-    backdrop-filter: blur(0px); /* pas de flou */
+    backdrop-filter: blur(0px); 
 }
 
-/* Titre */
+
 h1 {
     color: #222;
     margin-bottom: 25px;
 }
 
-/* Inputs et select */
+
 input, select {
     margin: 12px 0;
     padding: 12px 15px;
@@ -45,7 +45,7 @@ input, select {
     box-sizing: border-box;
 }
 
-/* Bouton */
+
 button {
     background-color: #007bff;
     color: white;
@@ -63,7 +63,7 @@ button:hover {
     background-color: #0056b3;
 }
 
-/* Résultat */
+
 .result {
     margin-top: 20px;
     font-size: 1.2em;
@@ -71,7 +71,7 @@ button:hover {
     color: #007bff;
 }
 
-/* Responsive */
+
 @media (max-width: 600px) {
     .container {
         padding: 20px;

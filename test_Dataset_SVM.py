@@ -123,7 +123,7 @@ class CorrectSVM:
         return float(self.lib.svm_accuracy(self.model_ptr, X_ptr, y_ptr, n_samples, n_features))
 
 def extract_robust_features(img_path):
-    """Features robustes et discriminantes"""
+    
     try:
         img = cv2.imread(str(img_path))
         if img is None:
@@ -140,17 +140,17 @@ def extract_robust_features(img_path):
             hist = cv2.normalize(hist, None).flatten()
             features.extend(hist)
         
-        # HSV
+        
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         for i in range(3):
             hist = cv2.calcHist([hsv], [i], None, [16], [0, 256])
             hist = cv2.normalize(hist, None).flatten()
             features.extend(hist)
         
-        # 2. Statistiques de texture
+       
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        # statistiques
+       
         features.extend([
             np.mean(gray) / 255.0,
             np.std(gray) / 255.0,
@@ -159,10 +159,10 @@ def extract_robust_features(img_path):
             np.min(gray) / 255.0
         ])
         
-        # Moments de Hu pour la forme
+        # Hu pour la forme
         moments = cv2.moments(gray)
         hu_moments = cv2.HuMoments(moments).flatten()
-        # Log transform pour normaliser
+        
         hu_moments = -np.sign(hu_moments) * np.log10(np.abs(hu_moments) + 1e-10)
         features.extend(hu_moments)
         
@@ -183,7 +183,7 @@ def extract_robust_features(img_path):
         else:
             features.extend([0.0, 0.0, 0.0])
         
-        # 4. Gradient 
+        #Gradient 
     
         laplacian = cv2.Laplacian(gray, cv2.CV_64F)
         features.extend([
@@ -204,8 +204,7 @@ def extract_robust_features(img_path):
         return None
 
 def robust_normalization(X_train, X_test):
-    """Normalisation robuste (résistante aux outliers)"""
-    #percentiles au lieu de min/max
+    
     p1 = np.percentile(X_train, 1, axis=0)
     p99 = np.percentile(X_train, 99, axis=0)
     range_vals = p99 - p1 + 1e-8
@@ -213,7 +212,7 @@ def robust_normalization(X_train, X_test):
     X_train_norm = (X_train - p1) / range_vals
     X_test_norm = (X_test - p1) / range_vals
     
-    # pour éviter les valeurs extrêmes
+    
     X_train_norm = np.clip(X_train_norm, 0, 1)
     X_test_norm = np.clip(X_test_norm, 0, 1)
     
@@ -276,7 +275,7 @@ def main():
     print("\n[1/4] Chargement des données...")
     X, y = [], []
     
-    for instrument, label in [('guitare', 0), ('piano', 1), ('violon', 2)]:
+    for instrument, label in [('piano', 0), ('batterie', 1), ('harpe', 2)]:
         path = Path(f"dataset/{instrument}")
         if path.exists():
             images = list(path.glob("*.[pj][np]g"))
@@ -301,7 +300,7 @@ def main():
     # Séparation train/test 
     print("\n[2/4] Séparation des données...")
     
-    # Créer des indices
+   
     indices_by_class = {0: [], 1: [], 2: []}
     for idx, label in enumerate(y):
         indices_by_class[label].append(idx)
@@ -332,7 +331,7 @@ def main():
     
     models = []
     train_accuracies = []
-    class_names = ['Guitare', 'Piano', 'Violon']
+    class_names = ['piano', 'batterie', 'harpe']
     
    
     class_params = [
@@ -365,7 +364,7 @@ def main():
         
         models.append(svm)
     
-    #Évaluation
+   
     print("\n" + "="*70)
     print("RÉSULTATS FINAUX")
     print("="*70)
@@ -378,7 +377,7 @@ def main():
     end_time = time.time()
     print(f"\nTemps total: {end_time - start_time:.1f} secondes")
     
-    #Test 
+    
     print("\n" + "="*70)
     print("TESTS AUTOMATIQUES")
     print("="*70)
@@ -388,11 +387,11 @@ def main():
         
         correct = 0
         for _ in range(test_size):
-            # Choisir un instrument aléatoire
+           
             true_class = random.randint(0, 2)
-            instrument = ['guitare', 'piano', 'violon'][true_class]
+            instrument = ['piano', 'batterie', 'harpe'][true_class]
             
-            # Trouver une image
+            
             path = Path(f"dataset/{instrument}")
             images = list(path.glob("*.[pj][np]g"))
             
@@ -401,12 +400,12 @@ def main():
                 
             img_path = random.choice(images)
             
-            # Extraire features
+           
             features = extract_robust_features(img_path)
             if features is None:
                 continue
             
-            # Normaliser (utiliser les paramètres d'entraînement)
+            # Normaliser 
             p1 = np.percentile(X_train, 1, axis=0)
             p99 = np.percentile(X_train, 99, axis=0)
             range_vals = p99 - p1 + 1e-8

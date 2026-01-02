@@ -161,7 +161,7 @@ def extraire_features(img_path, taille=(64, 64)):
 
 def charger_dataset(n_images_per_class=6):
     X, y = [], []
-    classes = [('guitare', 1), ('piano', -1), ('violon', 0)]
+    classes = [('piano', 1), ('batterie', -1), ('harpe', 0)]
     
     for instrument, label in classes:
         path = Path(f"dataset/{instrument}")
@@ -183,7 +183,7 @@ def charger_dataset(n_images_per_class=6):
     print(f"\nChargement total: {len(X)} echantillons")
     class_counts = Counter(y)
     for label, count in sorted(class_counts.items()):
-        instrument = {1: 'Guitare', -1: 'Piano', 0: 'Violon'}[label]
+        instrument = {1: 'piano', -1: 'batterie', 0: 'harpe'}[label]
         print(f"  {instrument} ({label}): {count} echantillons")
     
     return np.array(X), np.array(y)
@@ -267,12 +267,12 @@ def afficher_matrice_confusion(cm, classes, accuracy):
 class MultiClassPMC:
     def __init__(self, input_dim, n_hidden=1, learning_rate=0.01):
         self.models = {
-            'guitare': PMC(input_dim, n_hidden, learning_rate),
             'piano': PMC(input_dim, n_hidden, learning_rate),
-            'violon': PMC(input_dim, n_hidden, learning_rate)
+            'batterie': PMC(input_dim, n_hidden, learning_rate),
+            'harpe': PMC(input_dim, n_hidden, learning_rate)
         }
-        self.class_labels = {'guitare': 1, 'piano': -1, 'violon': 0}
-        self.label_names = {1: 'Guitare', -1: 'Piano', 0: 'Violon'}
+        self.class_labels = {'piano': 1, 'batterie': -1, 'harpe': 0}
+        self.label_names = {1: 'Piano', -1: 'Batterie', 0: 'Harpe'}
         self.input_dim = input_dim
         
     def fit(self, X_train, y_train, max_iterations=500):
@@ -313,7 +313,7 @@ class MultiClassPMC:
             elif len(votes) > 1:
                 final_class = votes[0]
             else:
-                final_class = 'guitare'
+                final_class = 'piano'
             
             final_preds.append(self.class_labels[final_class])
         
@@ -330,7 +330,7 @@ class MultiClassPMC:
         
         for i in range(n_samples):
             best_score = -np.inf
-            best_class = 'guitare'
+            best_class = 'piano'
             
             for class_name, score_array in scores.items():
                 if score_array[i] > best_score:
@@ -366,7 +366,7 @@ def test_pmc_3classes():
     classes = [-1, 0, 1]
     cm = calculer_matrice_confusion(y_test, pred_test, classes)
     
-    afficher_matrice_confusion(cm, ['Piano', 'Violon', 'Guitare'], accuracy)
+    afficher_matrice_confusion(cm, ['Piano', 'batterie', 'Harpe'], accuracy)
     
     precision, recall, f1 = calculer_metrics_par_classe(cm, classes)
     
@@ -442,7 +442,7 @@ def test_pmc_courbe_loss_3classes():
     plt.figure(figsize=(12, 6))
     
     colors = ['blue', 'green', 'red']
-    class_names = ['Guitare', 'Piano', 'Violon']
+    class_names = ['Piano', 'Batterie', 'Harpe']
     
     for i in range(3):
         plt.plot(train_losses[i], label=f'Train Loss ({class_names[i]})', 
@@ -472,12 +472,12 @@ def test_prediction_interactive_pmc(classifier, X_mean, X_std):
         
         if choix == "1":
             print("\nClasses disponibles:")
-            print("1. Guitare")
-            print("2. Piano")
-            print("3. Violon")
+            print("1. Piano")
+            print("2. Batterie")
+            print("3. Harpe")
             
             classe_choix = input("\nChoisir une classe (1-3): ").strip()
-            classes_dict = {'1': 'guitare', '2': 'piano', '3': 'violon'}
+            classes_dict = {'1': 'piano', '2': 'batterie', '3': 'harpe'}
             
             if classe_choix in classes_dict:
                 instrument = classes_dict[classe_choix]
@@ -549,8 +549,8 @@ def test_prediction_interactive_pmc(classifier, X_mean, X_std):
 if __name__ == "__main__":
 
     print("SYSTEME DE CLASSIFICATION PMC - 3 INSTRUMENTS")
- 
-    print("Instruments: Guitare, Piano, Violon")
+
+    print("Instruments: Piano, Batterie, Harpe")
     print("Approche: PMC One-vs-All")
 
 
