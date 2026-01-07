@@ -23,8 +23,6 @@ class CorrectSVM:
             c=c,
             max_iterations=5000  
         )
-        
-        # Les fonctions
         self.lib.svm_new.argtypes = [ctypes.POINTER(SVMConfig)]
         self.lib.svm_new.restype = ctypes.c_void_p
         self.lib.svm_delete.argtypes = [ctypes.c_void_p]
@@ -133,7 +131,7 @@ def extract_robust_features(img_path):
         img = cv2.resize(img, (100, 100))
         features = []
         
-        # 1. Histogrammes de couleur dans 3 espaces de couleur
+# Histogrammes
         # RGB
         for i in range(3):
             hist = cv2.calcHist([img], [i], None, [16], [0, 256])
@@ -159,7 +157,7 @@ def extract_robust_features(img_path):
             np.min(gray) / 255.0
         ])
         
-        # Hu pour la forme
+        
         moments = cv2.moments(gray)
         hu_moments = cv2.HuMoments(moments).flatten()
         
@@ -182,8 +180,6 @@ def extract_robust_features(img_path):
             ])
         else:
             features.extend([0.0, 0.0, 0.0])
-        
-        #Gradient 
     
         laplacian = cv2.Laplacian(gray, cv2.CV_64F)
         features.extend([
@@ -219,7 +215,7 @@ def robust_normalization(X_train, X_test):
     return X_train_norm, X_test_norm
 
 def evaluate_model(models, X_test, y_test, class_names):
-    """Évaluation complète du modèle"""
+    
     predictions = []
     
     for i in range(len(X_test)):
@@ -236,7 +232,6 @@ def evaluate_model(models, X_test, y_test, class_names):
     predictions = np.array(predictions)
     accuracy = np.mean(predictions == y_test) * 100
     
-    # Matrice de confusion
     cm = np.zeros((3, 3), dtype=int)
     for true, pred in zip(y_test, predictions):
         cm[true][pred] += 1
@@ -251,7 +246,6 @@ def evaluate_model(models, X_test, y_test, class_names):
         print(f"{class_names[i]} {''.join(row)}")
     
     # Accuracy par classe
-    print("\nAccuracy par classe:")
     for i in range(3):
         mask = y_test == i
         if np.sum(mask) > 0:
@@ -261,18 +255,14 @@ def evaluate_model(models, X_test, y_test, class_names):
     return accuracy, predictions
 
 def main():
-    print("SVM CORRECTED - CLASSIFICATION D'INSTRUMENTS")
-    print("="*70)
-    
     # Vérifier la DLL
     dll_path = Path("./target/release/libneural_networks.so")
     if not dll_path.exists():
         print("ERREUR: DLL non trouvée!")
-        print("Compilez avec: cargo build --release")
         return
     
     # Chargement des données
-    print("\n[1/4] Chargement des données...")
+   
     X, y = [], []
     
     for instrument, label in [('piano', 0), ('batterie', 1), ('harpe', 2)]:
@@ -298,7 +288,7 @@ def main():
     print(f"  Features: {X.shape[1]}")
     
     # Séparation train/test 
-    print("\n[2/4] Séparation des données...")
+    print("\n[2/4] Séparation des données")
     
    
     indices_by_class = {0: [], 1: [], 2: []}
@@ -365,9 +355,7 @@ def main():
         models.append(svm)
     
    
-    print("\n" + "="*70)
     print("RÉSULTATS FINAUX")
-    print("="*70)
     
     avg_train_acc = np.mean(train_accuracies)
     print(f"\nAccuracy moyenne sur train: {avg_train_acc:.1f}%")
@@ -378,9 +366,8 @@ def main():
     print(f"\nTemps total: {end_time - start_time:.1f} secondes")
     
     
-    print("\n" + "="*70)
-    print("TESTS AUTOMATIQUES")
-    print("="*70)
+    
+    print("TESTS")
     
     for test_size in [10, 20]:
         print(f"\nTest de {test_size} images aléatoires:")
@@ -405,7 +392,7 @@ def main():
             if features is None:
                 continue
             
-            # Normaliser 
+           
             p1 = np.percentile(X_train, 1, axis=0)
             p99 = np.percentile(X_train, 99, axis=0)
             range_vals = p99 - p1 + 1e-8
@@ -422,17 +409,16 @@ def main():
             
             if pred_class == true_class:
                 correct += 1
-                mark = "✓"
+                mark = ""
             else:
-                mark = "✗"
+                mark = ""
             
-            print(f"  {mark} {instrument:8} → {class_names[pred_class]}")
+            print(f"  {mark} {instrument:8} : {class_names[pred_class]}")
         
         print(f"  Résultat: {correct}/{test_size} corrects ({correct/test_size*100:.0f}%)")
     
-    print("\n" + "="*70)
-    print("RÉCAPITULATIF POUR NOTRE PROJET:")
-    print("="*70)
+
+   
     print(f"1. Accuracy sur train: {avg_train_acc:.1f}%")
     print(f"2. Accuracy sur test:  {test_acc:.1f}%")
     print(f"3. Dataset: {len(X)} images au total")

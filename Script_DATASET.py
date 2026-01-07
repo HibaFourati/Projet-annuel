@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 DATA_DIR = Path("dataset")
-TARGET_IMAGES = 200
+TARGET_IMAGES = 300
 MIN_SIZE = 250
 
 INSTRUMENTS = {
